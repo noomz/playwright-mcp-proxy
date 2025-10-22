@@ -1,7 +1,7 @@
 [project]
 name = "playwright-mcp-proxy"
-version = "0.1.0"
-description = "MCP proxy for Playwright with persistent storage and session management"
+version = "0.2.0"
+description = "MCP proxy for Playwright with persistent storage, session management, and diff-based content retrieval"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

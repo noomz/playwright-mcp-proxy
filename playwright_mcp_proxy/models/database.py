@@ -53,3 +53,14 @@ class ConsoleLog(BaseModel):
     location: Optional[str] = Field(
         None, description="Log location as JSON: {url, lineNumber, columnNumber}"
     )
+
+
+class DiffCursor(BaseModel):
+    """Diff cursor database model (Phase 2)."""
+
+    ref_id: str = Field(..., description="Request UUID (FK to responses)")
+    cursor_position: int = Field(default=0, description="Byte offset for text comparison")
+    last_snapshot_hash: Optional[str] = Field(
+        None, description="Hash of last returned content"
+    )
+    last_read: datetime = Field(default_factory=datetime.now, description="Last read timestamp")

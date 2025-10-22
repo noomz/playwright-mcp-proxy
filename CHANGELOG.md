@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-22
+
+### Added
+
+#### Phase 2: Diff-Based Content Retrieval
+
+- **Hash-based change detection** for `get_content` endpoint
+  - Content changes tracked using SHA256 hashes
+  - Returns only changed content on subsequent reads
+  - Empty response when no changes detected
+
+- **Diff cursor persistence**
+  - `diff_cursors` table in SQLite for tracking read state
+  - Cursors persist across server restarts
+  - Database operations: `get_diff_cursor`, `upsert_diff_cursor`, `delete_diff_cursor`
+
+- **reset_cursor parameter**
+  - `get_content(ref_id, reset_cursor=true)` resets diff tracking
+  - Returns full content and creates new cursor baseline
+  - Useful for forcing full content retrieval
+
+- **MCP client enhancements**
+  - Updated `get_content` tool with `reset_cursor` parameter
+  - Helpful message when content unchanged: "(No changes since last read...)"
+  - Boolean parameter in tool schema
+
+#### Testing
+
+- 8 new diff-related tests (total: 14 tests, all passing)
+  - Diff cursor CRUD operations
+  - Hash computation consistency
+  - First read workflow (full content + cursor creation)
+  - No changes workflow (empty response)
+  - Content changed workflow (full new content)
+  - Cursor persistence across database restart
+  - Reset cursor functionality
+
+#### Documentation
+
+- Updated README with Phase 2 features
+- Documented diff behavior in Available Tools section
+- Updated Roadmap marking Phase 2 as complete
+
+### Technical Details
+
+**Diff Algorithm:**
+- Simple hash comparison (SHA256)
+- If hash matches: return empty string
+- If hash differs: return full new content
+- Cursor stores: ref_id, cursor_position, last_snapshot_hash, last_read
+
+**Acceptance Criteria Met:**
+- ✅ get_content(ref_id) returns only content changed since last call
+- ✅ get_content(ref_id, reset_cursor=True) resets diff and returns full content
+- ✅ Cursor persists across server restarts (SQLite-backed)
+- ✅ Empty diff returns empty string (not error)
+- ✅ Initial read (no cursor) returns full content
+- ✅ Diff algorithm: simple string comparison (hash-based)
+- ✅ Console logs do NOT implement diff (always return full logs)
+
 ## [0.1.0] - 2025-10-22
 
 ### Added
@@ -106,4 +166,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest, pytest-asyncio (testing)
 - ruff (formatting)
 
+[0.2.0]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourusername/playwright-mcp-proxy/releases/tag/v0.1.0

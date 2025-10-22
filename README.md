@@ -21,10 +21,13 @@ MCP Client --> MCP Client --> HTTP Server --> Playwright MCP
 
 - **Persistent Storage**: All requests and responses stored in SQLite with UUID references
 - **Session Management**: UUID-based browser sessions that can be created and managed independently
-- **Optimized Responses**: Returns metadata + ref_id instead of full payloads (Phase 1)
+- **Optimized Responses**: Returns metadata + ref_id instead of full payloads
 - **Content Retrieval**: Get page snapshots and console logs by ref_id
+- **Diff-Based Content** (Phase 2): `get_content` returns only changes since last read
+  - Hash-based change detection
+  - Cursor persistence across server restarts
+  - `reset_cursor` parameter to get full content
 - **Subprocess Management**: Automatic health monitoring and restart for Playwright MCP
-- **Future-Ready**: Schema supports diff-based content retrieval (Phase 2)
 
 ## Installation
 
@@ -214,7 +217,10 @@ Or create a `.env` file (see `.env.example`).
 
 ### Content Retrieval
 
-- `get_content(ref_id, search_for?)` - Get page snapshot from a previous request
+- `get_content(ref_id, search_for?, reset_cursor?)` - Get page snapshot from a previous request
+  - **Phase 2**: Returns only changes since last read (hash-based diff)
+  - Use `reset_cursor=true` to get full content and reset diff tracking
+  - Empty response means no changes detected
 - `get_console_content(ref_id, level?)` - Get console logs (filter by debug/info/warn/error)
 
 ### Playwright Tools (Proxied)
@@ -279,19 +285,21 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run playw
 
 ## Roadmap
 
-### Phase 1 (Current)
+### Phase 1 (Complete)
 - [x] Core infrastructure
 - [x] SQLite persistence
 - [x] HTTP server with session management
 - [x] MCP client with tool proxying
 - [x] Subprocess lifecycle management
-- [ ] Basic testing
+- [x] Basic testing (6 tests)
 
-### Phase 2 (Contracted Future)
-- [ ] Diff-based content retrieval
-- [ ] `get_content` returns only changes since last read
-- [ ] `reset_cursor` parameter
-- [ ] Hash-based change detection
+### Phase 2 (Complete)
+- [x] Diff-based content retrieval
+- [x] `get_content` returns only changes since last read
+- [x] `reset_cursor` parameter
+- [x] Hash-based change detection
+- [x] Cursor persistence across server restarts
+- [x] Comprehensive tests (8 additional tests)
 
 ### Phase 3 (Important but Not Urgent)
 - [ ] Session state persistence

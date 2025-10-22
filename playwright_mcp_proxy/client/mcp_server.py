@@ -31,7 +31,7 @@ TOOLS = [
     ),
     Tool(
         name="get_content",
-        description="Get page snapshot content from a previous request",
+        description="Get page snapshot content from a previous request (Phase 2: with diff support)",
         inputSchema={
             "type": "object",
             "properties": {
@@ -42,6 +42,10 @@ TOOLS = [
                 "search_for": {
                     "type": "string",
                     "description": "Optional substring to filter content",
+                },
+                "reset_cursor": {
+                    "type": "boolean",
+                    "description": "Reset diff cursor and return full content (default: false)",
                 },
             },
             "required": ["ref_id"],
@@ -158,11 +162,25 @@ async def handle_tool_call(name: str, arguments: dict[str, Any]) -> list[TextCon
         if name == "get_content":
             ref_id = arguments["ref_id"]
             search_for = arguments.get("search_for", "")
-            params = {"search_for": search_for} if search_for else {}
+            reset_cursor = arguments.get("reset_cursor", False)
+            params = {}
+            if search_for:
+                params["search_for"] = search_for
+            if reset_cursor:
+                params["reset_cursor"] = "true"
             response = await http_client.get(f"{server_url}/content/{ref_id}", params=params)
             response.raise_for_status()
             data = response.json()
-            return [TextContent(type="text", text=data["content"])]
+            content = data["content"]
+
+            # Add helpful message if content is empty due to no changes
+            if not content and not reset_cursor:
+                return [TextContent(
+                    type="text",
+                    text="(No changes since last read. Use reset_cursor=true to get full content.)"
+                )]
+
+            return [TextContent(type="text", text=content)]
 
         # Handle console content retrieval
         if name == "get_console_content":

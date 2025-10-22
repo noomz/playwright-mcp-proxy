@@ -1,5 +1,6 @@
 """FastAPI server application."""
 
+import hashlib
 import logging
 import sys
 import uuid
@@ -13,7 +14,7 @@ from fastapi.responses import JSONResponse
 from ..config import settings
 from ..database import Database, init_database
 from ..models.api import ErrorResponse, ProxyRequest, ProxyResponse, ResponseMetadata
-from ..models.database import Request, Response, Session
+from ..models.database import DiffCursor, Request, Response, Session
 from .playwright_manager import PlaywrightManager
 
 # Configure logging
@@ -26,6 +27,11 @@ logger = logging.getLogger(__name__)
 # Global state
 playwright_manager: PlaywrightManager
 database: Database
+
+
+def compute_hash(content: str) -> str:
+    """Compute SHA256 hash of content."""
+    return hashlib.sha256(content.encode()).hexdigest()
 
 
 @asynccontextmanager
@@ -200,16 +206,17 @@ def create_app() -> FastAPI:
             )
 
     @app.get("/content/{ref_id}")
-    async def get_content(ref_id: str, search_for: str = ""):
+    async def get_content(ref_id: str, search_for: str = "", reset_cursor: bool = False):
         """
-        Get page snapshot content for a ref_id.
+        Get page snapshot content for a ref_id with diff support (Phase 2).
 
         Args:
             ref_id: Reference ID
             search_for: Optional substring to filter by
+            reset_cursor: If True, reset diff cursor and return full content
 
         Returns:
-            Page snapshot content
+            Page snapshot content (diff or full based on cursor state)
         """
         response = await database.get_response(ref_id)
         if not response:
@@ -220,11 +227,57 @@ def create_app() -> FastAPI:
 
         content = response.page_snapshot
 
-        # Apply search filter if provided
+        # Apply search filter if provided (before diff logic)
         if search_for:
             lines = [line for line in content.split("\n") if search_for in line]
             content = "\n".join(lines)
 
+        # Phase 2: Diff logic
+        if reset_cursor:
+            # Reset cursor and return full content
+            await database.delete_diff_cursor(ref_id)
+            # Create new cursor with current content hash
+            content_hash = compute_hash(content)
+            cursor = DiffCursor(
+                ref_id=ref_id,
+                cursor_position=len(content),
+                last_snapshot_hash=content_hash,
+                last_read=datetime.now(),
+            )
+            await database.upsert_diff_cursor(cursor)
+            return {"content": content}
+
+        # Check for existing cursor
+        cursor = await database.get_diff_cursor(ref_id)
+
+        if not cursor:
+            # First read: return full content and create cursor
+            content_hash = compute_hash(content)
+            cursor = DiffCursor(
+                ref_id=ref_id,
+                cursor_position=len(content),
+                last_snapshot_hash=content_hash,
+                last_read=datetime.now(),
+            )
+            await database.upsert_diff_cursor(cursor)
+            return {"content": content}
+
+        # Cursor exists: check if content changed
+        content_hash = compute_hash(content)
+
+        if cursor.last_snapshot_hash == content_hash:
+            # Content unchanged: return empty string
+            # Update last_read timestamp
+            cursor.last_read = datetime.now()
+            await database.upsert_diff_cursor(cursor)
+            return {"content": ""}
+
+        # Content changed: return full new content (simple diff strategy)
+        # Update cursor with new hash
+        cursor.cursor_position = len(content)
+        cursor.last_snapshot_hash = content_hash
+        cursor.last_read = datetime.now()
+        await database.upsert_diff_cursor(cursor)
         return {"content": content}
 
     @app.get("/console/{ref_id}")

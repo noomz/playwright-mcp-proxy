@@ -6,7 +6,7 @@ from typing import Optional
 
 import aiosqlite
 
-from ..models.database import ConsoleLog, Request, Response, Session
+from ..models.database import ConsoleLog, DiffCursor, Request, Response, Session
 
 
 class Database:
@@ -261,3 +261,45 @@ class Database:
         ) as cursor:
             row = await cursor.fetchone()
             return row["count"] if row else 0
+
+    # Diff cursor operations (Phase 2)
+
+    async def get_diff_cursor(self, ref_id: str) -> Optional[DiffCursor]:
+        """Get diff cursor for a ref_id."""
+        async with self.conn.execute(
+            "SELECT * FROM diff_cursors WHERE ref_id = ?", (ref_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return DiffCursor(
+                ref_id=row["ref_id"],
+                cursor_position=row["cursor_position"],
+                last_snapshot_hash=row["last_snapshot_hash"],
+                last_read=datetime.fromisoformat(row["last_read"]),
+            )
+
+    async def upsert_diff_cursor(self, cursor: DiffCursor) -> None:
+        """Create or update a diff cursor."""
+        await self.conn.execute(
+            """
+            INSERT INTO diff_cursors (ref_id, cursor_position, last_snapshot_hash, last_read)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(ref_id) DO UPDATE SET
+                cursor_position = excluded.cursor_position,
+                last_snapshot_hash = excluded.last_snapshot_hash,
+                last_read = excluded.last_read
+            """,
+            (
+                cursor.ref_id,
+                cursor.cursor_position,
+                cursor.last_snapshot_hash,
+                cursor.last_read.isoformat(),
+            ),
+        )
+        await self.conn.commit()
+
+    async def delete_diff_cursor(self, ref_id: str) -> None:
+        """Delete a diff cursor (reset)."""
+        await self.conn.execute("DELETE FROM diff_cursors WHERE ref_id = ?", (ref_id,))
+        await self.conn.commit()
