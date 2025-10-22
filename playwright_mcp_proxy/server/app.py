@@ -1,6 +1,7 @@
 """FastAPI server application."""
 
 import hashlib
+import json
 import logging
 import sys
 import uuid
@@ -32,6 +33,13 @@ database: Database
 def compute_hash(content: str) -> str:
     """Compute SHA256 hash of content."""
     return hashlib.sha256(content.encode()).hexdigest()
+
+
+def truncate_error(error_msg: str, max_length: int = 500) -> str:
+    """Truncate error message to prevent MCP protocol size limits."""
+    if len(error_msg) <= max_length:
+        return error_msg
+    return error_msg[:max_length] + f"... (truncated, {len(error_msg)} total chars)"
 
 
 @asynccontextmanager
@@ -155,10 +163,17 @@ def create_app() -> FastAPI:
                 console_logs_data = result["content"][0].get("text", "")
 
             # Store response
+            # Only store essential metadata from result, not the full payload
+            # to avoid database bloat and serialization issues
+            result_metadata = {
+                "tool": request.tool,
+                "isError": result.get("isError", False),
+            }
+
             db_response = Response(
                 ref_id=ref_id,
                 status="success",
-                result=str(result),  # Store full result as JSON string blob
+                result=json.dumps(result_metadata),  # Store minimal metadata, not full response
                 page_snapshot=page_snapshot,
                 console_logs=console_logs_data,
                 timestamp=datetime.now(),
@@ -182,13 +197,17 @@ def create_app() -> FastAPI:
             )
 
         except Exception as e:
-            logger.error(f"Error proxying request: {e}")
+            error_str = str(e)
+            logger.error(f"Error proxying request: {error_str[:500]}")
+
+            # Truncate error message for storage and MCP response
+            truncated_error = truncate_error(error_str, max_length=500)
 
             # Store error response
             db_response = Response(
                 ref_id=ref_id,
                 status="error",
-                error_message=str(e),
+                error_message=error_str,  # Store full error in DB
                 timestamp=datetime.now(),
             )
             await database.create_response(db_response)
@@ -202,7 +221,7 @@ def create_app() -> FastAPI:
                 status="error",
                 timestamp=datetime.now(),
                 metadata=ResponseMetadata(tool=request.tool),
-                error=str(e),
+                error=truncated_error,  # Return truncated error to prevent MCP size limits
             )
 
     @app.get("/content/{ref_id}")

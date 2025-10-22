@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-10-22
+
+### Fixed
+
+- **MCP message size limit error** (`Separator is found, but chunk is longer than limit`)
+  - Changed response storage to only persist minimal metadata instead of full Playwright payloads
+  - Now stores only `tool` name and `isError` flag in `responses.result` field
+  - Full page snapshots and console logs already stored in dedicated fields
+  - Response sizes reduced from potentially 10KB+ to ~300 bytes
+  - Full content still accessible via `/content/{ref_id}` and `/console/{ref_id}` endpoints
+
+- **Error message truncation**
+  - Added `truncate_error()` helper function
+  - Error messages truncated to 500 characters in MCP responses
+  - Full error messages still stored in database for debugging
+  - Prevents MCP protocol size limit violations on error responses
+
+### Testing
+
+- Added `examples/test_bug_fix.py` to verify fix
+- Verified browser_navigate no longer causes size limit errors
+- Confirmed response sizes are reasonable (<2KB)
+- Validated full content retrieval via dedicated endpoints
+
 ## [0.2.0] - 2025-10-22
 
 ### Added
@@ -166,5 +190,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest, pytest-asyncio (testing)
 - ruff (formatting)
 
+[0.2.1]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourusername/playwright-mcp-proxy/releases/tag/v0.1.0
