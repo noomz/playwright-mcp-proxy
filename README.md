@@ -1,0 +1,333 @@
+# Playwright MCP Proxy
+
+A Model Context Protocol (MCP) proxy for Playwright that adds persistent storage, session management, and optimized response handling.
+
+## Architecture
+
+The proxy consists of two UV-based Python components:
+
+1. **MCP Client** - A stdio MCP server that exposes Playwright tools to upstream clients
+2. **HTTP Server** - Manages the Playwright MCP subprocess, handles sessions, and persists data to SQLite
+
+```
+MCP Client --> MCP Client --> HTTP Server --> Playwright MCP
+(upstream)     (proxy)        (FastAPI)       (subprocess)
+                                   |
+                                   v
+                                SQLite
+```
+
+## Features
+
+- **Persistent Storage**: All requests and responses stored in SQLite with UUID references
+- **Session Management**: UUID-based browser sessions that can be created and managed independently
+- **Optimized Responses**: Returns metadata + ref_id instead of full payloads (Phase 1)
+- **Content Retrieval**: Get page snapshots and console logs by ref_id
+- **Subprocess Management**: Automatic health monitoring and restart for Playwright MCP
+- **Future-Ready**: Schema supports diff-based content retrieval (Phase 2)
+
+## Installation
+
+### Local Development Install
+
+```bash
+# Install in editable mode with UV
+uv pip install -e .
+
+# Or install with dev dependencies
+uv pip install -e ".[dev]"
+```
+
+### Global Install (Recommended for Production)
+
+#### Option 1: UV Tool Install (Recommended)
+
+Install as a global UV tool - commands will be available system-wide:
+
+```bash
+# Install from the current directory
+uv tool install .
+
+# Or install from a Git repository
+uv tool install git+https://github.com/yourusername/playwright-mcp-proxy.git
+
+# Commands are now available globally:
+playwright-proxy-server
+playwright-proxy-client
+```
+
+To update later:
+```bash
+uv tool upgrade playwright-mcp-proxy
+```
+
+To uninstall:
+```bash
+uv tool uninstall playwright-mcp-proxy
+```
+
+#### Option 2: pipx Install
+
+If you prefer pipx:
+
+```bash
+# Install with pipx
+pipx install .
+
+# Or from Git
+pipx install git+https://github.com/yourusername/playwright-mcp-proxy.git
+
+# Commands available globally
+playwright-proxy-server
+playwright-proxy-client
+```
+
+#### Option 3: System-wide UV pip install
+
+```bash
+# Install to UV's global Python environment
+uv pip install --system .
+```
+
+## Quick Start
+
+### 1. Start the HTTP Server
+
+```bash
+# Using the installed script
+playwright-proxy-server
+
+# Or using Python module
+python -m playwright_mcp_proxy.server
+```
+
+The server will:
+- Initialize the SQLite database at `./proxy.db`
+- Spawn the Playwright MCP subprocess
+- Listen on `http://localhost:34501`
+
+### 2. Configure MCP Client
+
+Add to your MCP client configuration (e.g., Claude Desktop, VS Code):
+
+**If installed globally (uv tool install or pipx):**
+
+```json
+{
+  "mcpServers": {
+    "playwright-proxy": {
+      "command": "playwright-proxy-client"
+    }
+  }
+}
+```
+
+**If using local development install:**
+
+```json
+{
+  "mcpServers": {
+    "playwright-proxy": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/playwright-mcp-proxy",
+        "playwright-proxy-client"
+      ]
+    }
+  }
+}
+```
+
+**Or using the Python module directly:**
+
+```json
+{
+  "mcpServers": {
+    "playwright-proxy": {
+      "command": "python",
+      "args": [
+        "-m",
+        "playwright_mcp_proxy.client"
+      ]
+    }
+  }
+}
+```
+
+### 3. Use from MCP Client
+
+```
+# Create a new browser session
+> create_new_session()
+Created session: abc-123-def-456
+
+# Navigate and take snapshot
+> browser_navigate(url="https://example.com")
+Request completed successfully
+Ref ID: xyz-789
+Page snapshot available. Use get_content('xyz-789')
+
+# Get the page content
+> get_content(ref_id="xyz-789")
+[Full accessibility tree snapshot]
+
+# Search within content
+> get_content(ref_id="xyz-789", search_for="Example Domain")
+- heading "Example Domain"
+```
+
+## Configuration
+
+Configuration via environment variables (prefix: `PLAYWRIGHT_PROXY_`):
+
+```bash
+# Server
+PLAYWRIGHT_PROXY_SERVER_HOST=localhost
+PLAYWRIGHT_PROXY_SERVER_PORT=34501
+
+# Database
+PLAYWRIGHT_PROXY_DATABASE_PATH=./proxy.db
+
+# Playwright
+PLAYWRIGHT_PROXY_PLAYWRIGHT_BROWSER=chrome  # chrome, firefox, webkit
+PLAYWRIGHT_PROXY_PLAYWRIGHT_HEADLESS=false
+
+# Subprocess Management
+PLAYWRIGHT_PROXY_HEALTH_CHECK_INTERVAL=30
+PLAYWRIGHT_PROXY_MAX_RESTART_ATTEMPTS=3
+PLAYWRIGHT_PROXY_RESTART_WINDOW=300
+PLAYWRIGHT_PROXY_SHUTDOWN_TIMEOUT=5
+
+# Logging
+PLAYWRIGHT_PROXY_LOG_LEVEL=INFO
+```
+
+Or create a `.env` file (see `.env.example`).
+
+## Available Tools
+
+### Session Management
+
+- `create_new_session()` - Create a new browser session, returns `session_id`
+
+### Content Retrieval
+
+- `get_content(ref_id, search_for?)` - Get page snapshot from a previous request
+- `get_console_content(ref_id, level?)` - Get console logs (filter by debug/info/warn/error)
+
+### Playwright Tools (Proxied)
+
+All standard Playwright MCP tools are available:
+
+- `browser_navigate(url)`
+- `browser_snapshot()`
+- `browser_click(element, ref)`
+- `browser_type(element, ref, text, submit?)`
+- `browser_console_messages(onlyErrors?)`
+- `browser_close()`
+- ... and more
+
+Responses return metadata + ref_id instead of full content.
+
+## Database Schema
+
+- **sessions** - Browser sessions (UUID, state, timestamps)
+- **requests** - All proxied requests (ref_id, tool, params)
+- **responses** - Full responses as blobs (result, page_snapshot, console_logs)
+- **console_logs** - Normalized console entries (level, message, location)
+- **diff_cursors** - For Phase 2 diff support
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=playwright_mcp_proxy
+
+# Run specific test file
+uv run pytest tests/test_database.py
+```
+
+### Code Formatting
+
+```bash
+# Check formatting
+uv run ruff check .
+
+# Auto-fix issues
+uv run ruff check --fix .
+```
+
+### Manual Testing
+
+```bash
+# Terminal 1: Start server
+uv run playwright-proxy-server
+
+# Terminal 2: Start client (stdio)
+uv run playwright-proxy-client
+
+# Terminal 3: Send MCP requests via stdio
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run playwright-proxy-client
+```
+
+## Roadmap
+
+### Phase 1 (Current)
+- [x] Core infrastructure
+- [x] SQLite persistence
+- [x] HTTP server with session management
+- [x] MCP client with tool proxying
+- [x] Subprocess lifecycle management
+- [ ] Basic testing
+
+### Phase 2 (Contracted Future)
+- [ ] Diff-based content retrieval
+- [ ] `get_content` returns only changes since last read
+- [ ] `reset_cursor` parameter
+- [ ] Hash-based change detection
+
+### Phase 3 (Important but Not Urgent)
+- [ ] Session state persistence
+- [ ] Restart recovery with session rehydration
+- [ ] `session_resume(session_id)` tool
+
+## Troubleshooting
+
+### Server won't start
+
+- Check if port 34501 is available
+- Verify Node.js is installed (for Playwright MCP)
+- Check logs in console output
+
+### Subprocess keeps restarting
+
+- Check `~/.npm` has `@playwright/mcp@latest` installed
+- Verify browser binaries are installed
+- Review stderr logs
+
+### MCP client can't connect
+
+- Ensure HTTP server is running on localhost:34501
+- Check firewall settings
+- Verify configuration in MCP client
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions welcome! Please:
+1. Follow the existing code style (Ruff)
+2. Add tests for new features
+3. Update documentation
+4. Keep Phase 1 scope focused
+
+See `.current-work.md` for implementation notes and design decisions.

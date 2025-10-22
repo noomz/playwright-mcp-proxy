@@ -1,0 +1,282 @@
+"""FastAPI server application."""
+
+import logging
+import sys
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+
+from ..config import settings
+from ..database import Database, init_database
+from ..models.api import ErrorResponse, ProxyRequest, ProxyResponse, ResponseMetadata
+from ..models.database import Request, Response, Session
+from .playwright_manager import PlaywrightManager
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# Global state
+playwright_manager: PlaywrightManager
+database: Database
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    global playwright_manager, database
+
+    # Startup
+    logger.info("Starting Playwright MCP Proxy server...")
+
+    # Initialize database
+    await init_database(str(settings.database_path))
+    database = Database(str(settings.database_path))
+    await database.connect()
+    logger.info(f"Database initialized at {settings.database_path}")
+
+    # Start Playwright manager
+    playwright_manager = PlaywrightManager()
+    await playwright_manager.start()
+    logger.info("Playwright subprocess started")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down Playwright MCP Proxy server...")
+
+    # Stop Playwright manager
+    await playwright_manager.stop()
+
+    # Close database
+    await database.close()
+
+    logger.info("Shutdown complete")
+
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    app = FastAPI(
+        title="Playwright MCP Proxy",
+        description="HTTP proxy for Playwright MCP with persistent storage",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint."""
+        return {
+            "status": "healthy" if playwright_manager.is_healthy else "degraded",
+            "playwright_subprocess": "running" if playwright_manager.is_healthy else "down",
+        }
+
+    @app.post("/sessions", response_model=dict[str, str])
+    async def create_session():
+        """Create a new browser session."""
+        session_id = str(uuid.uuid4())
+
+        # Create session in database
+        session = Session(
+            session_id=session_id,
+            created_at=datetime.now(),
+            last_activity=datetime.now(),
+            state="active",
+        )
+        await database.create_session(session)
+
+        logger.info(f"Created session {session_id}")
+        return {"session_id": session_id}
+
+    @app.post("/proxy", response_model=ProxyResponse)
+    async def proxy_request(request: ProxyRequest):
+        """
+        Proxy a request to Playwright MCP and persist the response.
+
+        Args:
+            request: Proxy request with session_id, tool, and params
+
+        Returns:
+            ProxyResponse with ref_id and metadata
+        """
+        # Verify session exists and is active
+        session = await database.get_session(request.session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session.state != "active":
+            raise HTTPException(status_code=400, detail=f"Session is {session.state}")
+
+        # Generate ref_id
+        ref_id = request.request_id or str(uuid.uuid4())
+
+        # Create request record
+        db_request = Request(
+            ref_id=ref_id,
+            session_id=request.session_id,
+            tool_name=request.tool,
+            params=str(request.params),  # Store as JSON string
+            timestamp=datetime.now(),
+        )
+        await database.create_request(db_request)
+
+        # Update session activity
+        await database.update_session_activity(request.session_id)
+
+        try:
+            # Send request to Playwright MCP
+            result = await playwright_manager.send_request(
+                "tools/call",
+                {"name": request.tool, "arguments": request.params},
+            )
+
+            # Extract page snapshot if available
+            page_snapshot = None
+            console_logs_data = None
+
+            # Check if this was a browser_snapshot call
+            if request.tool == "browser_snapshot" and "content" in result:
+                page_snapshot = result["content"][0].get("text", "")
+
+            # Check if this was a browser_console_messages call
+            if request.tool == "browser_console_messages" and "content" in result:
+                console_logs_data = result["content"][0].get("text", "")
+
+            # Store response
+            db_response = Response(
+                ref_id=ref_id,
+                status="success",
+                result=str(result),  # Store full result as JSON string blob
+                page_snapshot=page_snapshot,
+                console_logs=console_logs_data,
+                timestamp=datetime.now(),
+            )
+            await database.create_response(db_response)
+
+            # Build metadata
+            metadata = ResponseMetadata(
+                tool=request.tool,
+                has_snapshot=page_snapshot is not None,
+                has_console_logs=console_logs_data is not None,
+                console_error_count=0,  # TODO: Parse and count errors
+            )
+
+            return ProxyResponse(
+                ref_id=ref_id,
+                session_id=request.session_id,
+                status="success",
+                timestamp=datetime.now(),
+                metadata=metadata,
+            )
+
+        except Exception as e:
+            logger.error(f"Error proxying request: {e}")
+
+            # Store error response
+            db_response = Response(
+                ref_id=ref_id,
+                status="error",
+                error_message=str(e),
+                timestamp=datetime.now(),
+            )
+            await database.create_response(db_response)
+
+            # Update session state to error
+            await database.update_session_state(request.session_id, "error")
+
+            return ProxyResponse(
+                ref_id=ref_id,
+                session_id=request.session_id,
+                status="error",
+                timestamp=datetime.now(),
+                metadata=ResponseMetadata(tool=request.tool),
+                error=str(e),
+            )
+
+    @app.get("/content/{ref_id}")
+    async def get_content(ref_id: str, search_for: str = ""):
+        """
+        Get page snapshot content for a ref_id.
+
+        Args:
+            ref_id: Reference ID
+            search_for: Optional substring to filter by
+
+        Returns:
+            Page snapshot content
+        """
+        response = await database.get_response(ref_id)
+        if not response:
+            raise HTTPException(status_code=404, detail="Response not found")
+
+        if not response.page_snapshot:
+            return {"content": ""}
+
+        content = response.page_snapshot
+
+        # Apply search filter if provided
+        if search_for:
+            lines = [line for line in content.split("\n") if search_for in line]
+            content = "\n".join(lines)
+
+        return {"content": content}
+
+    @app.get("/console/{ref_id}")
+    async def get_console_content(ref_id: str, level: str = ""):
+        """
+        Get console logs for a ref_id.
+
+        Args:
+            ref_id: Reference ID
+            level: Optional level filter (debug, info, warn, error)
+
+        Returns:
+            Console logs
+        """
+        response = await database.get_response(ref_id)
+        if not response:
+            raise HTTPException(status_code=404, detail="Response not found")
+
+        # Check normalized console_logs table first
+        logs = await database.get_console_logs(ref_id, level if level else None)
+        if logs:
+            # Format logs
+            formatted = []
+            for log in logs:
+                formatted.append(
+                    f"[{log.level.upper()}] {log.timestamp.isoformat()}: {log.message}"
+                )
+            return {"content": "\n".join(formatted)}
+
+        # Fallback to stored console_logs blob
+        if response.console_logs:
+            content = response.console_logs
+            # TODO: Parse JSON and filter by level if needed
+            return {"content": content}
+
+        return {"content": ""}
+
+    return app
+
+
+def main():
+    """Main entry point for the server."""
+    import uvicorn
+
+    uvicorn.run(
+        "playwright_mcp_proxy.server.app:create_app",
+        host=settings.server_host,
+        port=settings.server_port,
+        factory=True,
+        log_level=settings.log_level.lower(),
+    )
+
+
+if __name__ == "__main__":
+    main()
