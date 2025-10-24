@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import time
+import traceback
 from asyncio.subprocess import Process
 from collections import deque
 from typing import Any, Optional
@@ -100,6 +101,40 @@ class PlaywrightManager:
         self.is_healthy = False
         self.process = None
 
+    async def _read_line_chunked(self, stream: asyncio.StreamReader) -> bytes:
+        """
+        Read a line from stream, handling lines that exceed buffer limit.
+
+        This handles asyncio.LimitOverrunError that occurs when a single line
+        exceeds the default 64KB buffer limit. Solution based on:
+        https://github.com/ipython/ipython/issues/14005
+
+        Args:
+            stream: The asyncio StreamReader to read from
+
+        Returns:
+            Complete line as bytes
+        """
+        chunks = []
+
+        while True:
+            try:
+                # Try to read until newline
+                chunk = await stream.readuntil(b'\n')
+                chunks.append(chunk)
+                break  # Successfully found newline
+            except asyncio.IncompleteReadError as e:
+                # EOF reached before newline
+                chunks.append(e.partial)
+                break
+            except asyncio.LimitOverrunError as e:
+                # Line exceeds buffer limit - read what's available and continue
+                chunk = await stream.read(e.consumed)
+                chunks.append(chunk)
+                # Continue loop to read more until we find newline
+
+        return b''.join(chunks)
+
     async def send_request(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         """
         Send a JSON-RPC request to Playwright MCP.
@@ -135,7 +170,8 @@ class PlaywrightManager:
             if not self.process.stdout:
                 raise RuntimeError("Subprocess stdout is not available")
 
-            response_line = await self.process.stdout.readline()
+            # Use chunked reading to handle large responses (>64KB)
+            response_line = await self._read_line_chunked(self.process.stdout)
             if not response_line:
                 raise RuntimeError("Subprocess returned empty response")
 
@@ -241,6 +277,7 @@ class PlaywrightManager:
             logger.info("Subprocess restarted successfully")
         except Exception as e:
             logger.error(f"Failed to restart subprocess: {e}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
 
     async def _monitor_stderr(self) -> None:
         """Monitor subprocess stderr for logging."""

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import sys
+import traceback
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -199,6 +200,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             error_str = str(e)
             logger.error(f"Error proxying request: {error_str[:500]}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
 
             # Truncate error message for storage and MCP response
             truncated_error = truncate_error(error_str, max_length=500)

@@ -213,41 +213,38 @@ async def handle_tool_call(name: str, arguments: dict[str, Any]) -> list[TextCon
         data = response.json()
 
         # Format response with metadata only (Phase 1 policy)
+        # Keep responses very short to avoid MCP protocol buffer limits
         if data["status"] == "success":
             metadata = data["metadata"]
-            result_text = (
-                f"✓ Request completed successfully\n"
-                f"Ref ID: {data['ref_id']}\n"
-                f"Tool: {metadata['tool']}\n"
-                f"Timestamp: {data['timestamp']}\n"
-            )
+            result_text = f"✓ {metadata['tool']} | {data['ref_id']}"
 
             if metadata.get("has_snapshot"):
-                result_text += f"\nPage snapshot available. Use get_content('{data['ref_id']}')"
+                result_text += f" | snapshot: get_content('{data['ref_id']}')"
 
             if metadata.get("has_console_logs"):
-                result_text += (
-                    f"\nConsole logs available. Use get_console_content('{data['ref_id']}')"
-                )
-
-            if metadata.get("console_error_count", 0) > 0:
-                result_text += f"\n⚠ {metadata['console_error_count']} console errors detected"
+                result_text += f" | logs: get_console_content('{data['ref_id']}')"
 
             return [TextContent(type="text", text=result_text)]
         else:
+            # Truncate error to prevent buffer overflow
+            error_msg = str(data.get('error', 'Unknown error'))[:200]
             return [
                 TextContent(
                     type="text",
-                    text=f"✗ Request failed\nRef ID: {data['ref_id']}\nError: {data.get('error', 'Unknown error')}",
+                    text=f"✗ {data['ref_id']} | {error_msg}",
                 )
             ]
 
     except httpx.HTTPError as e:
         logger.error(f"HTTP error calling tool {name}: {e}")
-        return [TextContent(type="text", text=f"HTTP error: {e}")]
+        # Truncate to avoid MCP buffer limits
+        error_str = str(e)[:200]
+        return [TextContent(type="text", text=f"HTTP error: {error_str}")]
     except Exception as e:
         logger.error(f"Error calling tool {name}: {e}")
-        return [TextContent(type="text", text=f"Error: {e}")]
+        # Truncate to avoid MCP buffer limits
+        error_str = str(e)[:200]
+        return [TextContent(type="text", text=f"Error: {error_str}")]
 
 
 async def run_mcp_server():
