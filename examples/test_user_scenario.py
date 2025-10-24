@@ -3,7 +3,6 @@ Test the exact scenario the user reported.
 """
 
 import asyncio
-import json
 
 import httpx
 

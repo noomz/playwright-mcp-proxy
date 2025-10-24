@@ -1,6 +1,5 @@
 """Configuration for Playwright MCP Proxy."""
 
-import os
 from pathlib import Path
 from typing import Optional
 

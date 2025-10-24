@@ -31,7 +31,6 @@ async def main():
             },
         )
         data = response.json()
-        ref_id = data["ref_id"]
         print(f"   Response size: {len(response.text)} bytes")
         print(f"   Response: {json.dumps(data, indent=2)}\n")
 
@@ -74,7 +73,7 @@ async def main():
             print(f"   ⚠️  Click stored content! Size: {len(content)} bytes")
             print(f"   First 200 chars: {content[:200]}...\n")
         else:
-            print(f"   ✓ Click stored no content\n")
+            print("   ✓ Click stored no content\n")
 
 
 if __name__ == "__main__":

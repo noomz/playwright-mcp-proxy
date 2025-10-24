@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from playwright_mcp_proxy.database import Database, init_database
-from playwright_mcp_proxy.models.database import Session, SessionSnapshot
+from playwright_mcp_proxy.models.database import Session
 
 
 @pytest.mark.asyncio

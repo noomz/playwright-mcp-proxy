@@ -58,7 +58,7 @@ async def main():
                 print(f"   Ref ID: {result['ref_id']}")
                 return
 
-            print(f"   ✓ Navigation succeeded!")
+            print("   ✓ Navigation succeeded!")
             print(f"   Status: {result['status']}")
             print(f"   Ref ID: {result['ref_id']}")
             print(f"   Metadata: {result.get('metadata', {})}")
@@ -70,7 +70,7 @@ async def main():
             if response_size > 2000:
                 print(f"   ⚠️  Warning: Response is large ({response_size} bytes)")
             else:
-                print(f"   ✓ Response size is reasonable")
+                print("   ✓ Response size is reasonable")
 
         except Exception as e:
             print(f"   ❌ Exception occurred: {e}")
@@ -100,7 +100,7 @@ async def main():
         if response_size > 2000:
             print(f"   ⚠️  Warning: Response is large ({response_size} bytes)")
         else:
-            print(f"   ✓ Response size is reasonable")
+            print("   ✓ Response size is reasonable")
 
         print()
 
@@ -112,7 +112,7 @@ async def main():
 
         print(f"   Content length: {len(content)} characters")
         print(f"   First 150 chars: {content[:150]}...")
-        print(f"   ✓ Full content retrieved successfully via dedicated endpoint")
+        print("   ✓ Full content retrieved successfully via dedicated endpoint")
         print()
 
         print("=" * 60)

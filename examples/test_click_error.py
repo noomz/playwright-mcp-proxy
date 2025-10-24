@@ -103,7 +103,7 @@ async def main():
                 try:
                     error_data = response.json()
                     print(f"   Error data: {json.dumps(error_data, indent=2)}")
-                except:
+                except Exception:
                     pass
                 return
 
@@ -115,7 +115,7 @@ async def main():
             if result['status'] == 'error':
                 print(f"   Error: {result.get('error', 'Unknown')}")
             else:
-                print(f"   ✓ Click succeeded!\n")
+                print("   ✓ Click succeeded!\n")
 
         except Exception as e:
             print(f"   ❌ Exception: {e}")

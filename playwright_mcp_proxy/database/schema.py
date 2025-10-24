@@ -2,7 +2,6 @@
 
 import aiosqlite
 
-
 # SQLite schema DDL
 SCHEMA = """
 -- Sessions table

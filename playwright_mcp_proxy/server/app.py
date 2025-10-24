@@ -4,19 +4,17 @@ import asyncio
 import hashlib
 import json
 import logging
-import sys
 import traceback
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 
 from ..config import settings
 from ..database import Database, init_database
-from ..models.api import ErrorResponse, ProxyRequest, ProxyResponse, ResponseMetadata
+from ..models.api import ProxyRequest, ProxyResponse, ResponseMetadata
 from ..models.database import DiffCursor, Request, Response, Session
 from .playwright_manager import PlaywrightManager
 from .session_state import SessionStateManager

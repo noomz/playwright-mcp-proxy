@@ -79,7 +79,7 @@ async def main():
         if content:
             print(f"   ❌ ERROR: Expected empty, got {len(content)} characters\n")
         else:
-            print(f"   ✓ Correct: Empty content (no changes detected)\n")
+            print("   ✓ Correct: Empty content (no changes detected)\n")
 
         # Third read: same result (still no changes)
         print("7. Third read (should still be empty)...")
@@ -89,7 +89,7 @@ async def main():
         if content:
             print(f"   ❌ ERROR: Expected empty, got {len(content)} characters\n")
         else:
-            print(f"   ✓ Correct: Empty content (no changes detected)\n")
+            print("   ✓ Correct: Empty content (no changes detected)\n")
 
         # Reset cursor: should return full content again
         print("8. Reset cursor (should return full content)...")
@@ -99,7 +99,7 @@ async def main():
         content_data = response.json()
         content = content_data["content"]
         print(f"   Content length: {len(content)} characters")
-        print(f"   ✓ Cursor reset: Full content returned\n")
+        print("   ✓ Cursor reset: Full content returned\n")
 
         # After reset, next read should be empty again
         print("9. Read after reset (should be empty again)...")
@@ -109,7 +109,7 @@ async def main():
         if content:
             print(f"   ❌ ERROR: Expected empty, got {len(content)} characters\n")
         else:
-            print(f"   ✓ Correct: Empty content (no changes since reset)\n")
+            print("   ✓ Correct: Empty content (no changes since reset)\n")
 
         # Test with search filter (doesn't affect diff logic)
         print("10. Read with search filter (should still be empty)...")
@@ -121,7 +121,7 @@ async def main():
         if content:
             print(f"   ❌ ERROR: Expected empty, got: {content}\n")
         else:
-            print(f"   ✓ Correct: Empty (filter applied after diff check)\n")
+            print("   ✓ Correct: Empty (filter applied after diff check)\n")
 
         print("✓ All Phase 2 diff tests passed!")
         print("\nKey takeaways:")
