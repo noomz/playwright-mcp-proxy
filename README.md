@@ -424,6 +424,13 @@ Contributions welcome! Please:
 1. Follow the existing code style (Ruff)
 2. Add tests for new features
 3. Update documentation
-4. Keep Phase 1 scope focused
+4. Ensure backward compatibility
 
-See `.current-work.md` for implementation notes and design decisions.
+Areas for contribution:
+- Integration tests for session recovery
+- Performance optimizations
+- Additional browser state capture (iframe support, web workers, etc.)
+- Enhanced rehydration strategies
+- Bug fixes and improvements
+
+See `CLAUDE.md` for architecture details and development patterns.
