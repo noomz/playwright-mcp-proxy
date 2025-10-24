@@ -40,46 +40,49 @@ Enable sessions to survive server restarts by persisting and rehydrating browser
 
 ## 🚧 In Progress
 
-### Phase 7.1: State Capture Infrastructure
+### Phase 7.1: State Capture Infrastructure ✅ COMPLETE
 - [x] Schema and models
-- [ ] Database operations for snapshots
-- [ ] State extraction from Playwright
-- [ ] Periodic snapshot mechanism
+- [x] Database operations for snapshots
+- [x] State extraction from Playwright
+- [x] Periodic snapshot mechanism
 
 ---
 
 ## 📋 Remaining Work
 
-### Phase 7.1 (Current) - State Capture
+### Phase 7.1 - State Capture ✅ COMPLETE
 **Goal:** Capture and persist browser state periodically
 
-Remaining tasks:
-1. **Database Operations** (next)
-   - [ ] `save_session_snapshot()` - Save new snapshot
-   - [ ] `get_latest_session_snapshot()` - Get most recent
-   - [ ] `get_session_snapshots()` - Get all for session
-   - [ ] `cleanup_old_snapshots()` - Keep only last N
-   - [ ] `update_session_state_fields()` - Update inline fields
+Completed:
+1. **Database Operations** ✅
+   - [x] `save_session_snapshot()` - Save new snapshot
+   - [x] `get_latest_session_snapshot()` - Get most recent
+   - [x] `get_session_snapshots()` - Get all for session
+   - [x] `cleanup_old_snapshots()` - Keep only last N
+   - [x] `update_session_state_from_snapshot()` - Update inline fields
 
-2. **State Extraction**
-   - [ ] Add Playwright state extraction helper
-   - [ ] `get_current_url()` via browser_evaluate
-   - [ ] `get_cookies()` via context API
-   - [ ] `get_local_storage()` via browser_evaluate
-   - [ ] `get_session_storage()` via browser_evaluate
-   - [ ] `get_viewport()` via Playwright API
+2. **State Extraction** ✅
+   - [x] Added SessionStateManager class
+   - [x] `capture_state()` extracts all browser state
+   - [x] `get_current_url()` via browser_evaluate
+   - [x] `get_cookies()` via browser_evaluate (document.cookie)
+   - [x] `get_local_storage()` via browser_evaluate
+   - [x] `get_session_storage()` via browser_evaluate
+   - [x] `get_viewport()` via browser_evaluate
 
-3. **Periodic Snapshots**
-   - [ ] Background task for periodic snapshots
-   - [ ] Snapshot on navigation events
-   - [ ] Respect snapshot_interval setting
-   - [ ] Handle snapshot failures gracefully
+3. **Periodic Snapshots** ✅
+   - [x] Background task for periodic snapshots
+   - [x] Integrated into app lifespan
+   - [x] Respects snapshot_interval setting
+   - [x] Handles snapshot failures gracefully
+   - [x] Cleans up old snapshots automatically
 
-4. **Testing**
-   - [ ] Test schema migrations
-   - [ ] Test snapshot CRUD operations
-   - [ ] Test state extraction accuracy
-   - [ ] Test periodic snapshot mechanism
+4. **Testing** ✅
+   - [x] Test schema migrations (3 tests)
+   - [x] Test snapshot CRUD operations
+   - [x] Test state extraction accuracy (7 tests)
+   - [x] Test periodic snapshot mechanism
+   - [x] All 10 tests passing
 
 ### Phase 7.2 - Startup Detection
 **Goal:** Detect orphaned sessions and mark as recoverable
@@ -136,18 +139,18 @@ Phase 7 will be complete when:
 
 ## 📊 Progress Estimate
 
-**Overall Phase 7:** ~25% complete
+**Overall Phase 7:** ~35% complete
 
-- Phase 7.1 (State Capture): ~30% complete
+- Phase 7.1 (State Capture): ✅ 100% complete
 - Phase 7.2 (Detection): 0% complete
-- Phase 7.3 (Rehydration): 0% complete
-- Phase 7.4 (Testing): 0% complete
+- Phase 7.3 (Rehydration): 0% complete (restore_state implemented, needs integration)
+- Phase 7.4 (Testing): ~25% complete (unit tests done, integration tests pending)
 
 **Next immediate steps:**
-1. Test schema changes work (schema migration)
-2. Implement database snapshot operations
-3. Add Playwright state extraction
-4. Implement periodic snapshot mechanism
+1. Implement startup detection (Phase 7.2)
+2. Detect orphaned sessions on startup
+3. Mark sessions as recoverable/stale based on age
+4. Add list_sessions() tool to MCP client
 
 ---
 

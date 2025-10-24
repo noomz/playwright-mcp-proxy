@@ -6,7 +6,7 @@ from typing import Optional
 
 import aiosqlite
 
-from ..models.database import ConsoleLog, DiffCursor, Request, Response, Session
+from ..models.database import ConsoleLog, DiffCursor, Request, Response, Session, SessionSnapshot
 
 
 class Database:
@@ -323,4 +323,165 @@ class Database:
     async def delete_diff_cursor(self, ref_id: str) -> None:
         """Delete a diff cursor (reset)."""
         await self.conn.execute("DELETE FROM diff_cursors WHERE ref_id = ?", (ref_id,))
+        await self.conn.commit()
+
+    # Session snapshot operations (Phase 7)
+
+    async def save_session_snapshot(self, snapshot: SessionSnapshot) -> None:
+        """
+        Save a session state snapshot.
+
+        Args:
+            snapshot: SessionSnapshot to save
+        """
+        await self.conn.execute(
+            """
+            INSERT INTO session_snapshots (
+                session_id, current_url, cookies, local_storage,
+                session_storage, viewport, snapshot_time
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                snapshot.session_id,
+                snapshot.current_url,
+                snapshot.cookies,
+                snapshot.local_storage,
+                snapshot.session_storage,
+                snapshot.viewport,
+                snapshot.snapshot_time.isoformat(),
+            ),
+        )
+        await self.conn.commit()
+
+    async def get_latest_session_snapshot(self, session_id: str) -> Optional[SessionSnapshot]:
+        """
+        Get the most recent snapshot for a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Latest SessionSnapshot or None if no snapshots exist
+        """
+        async with self.conn.execute(
+            """
+            SELECT * FROM session_snapshots
+            WHERE session_id = ?
+            ORDER BY snapshot_time DESC
+            LIMIT 1
+            """,
+            (session_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return SessionSnapshot(
+                id=row["id"],
+                session_id=row["session_id"],
+                current_url=row["current_url"],
+                cookies=row["cookies"],
+                local_storage=row["local_storage"],
+                session_storage=row["session_storage"],
+                viewport=row["viewport"],
+                snapshot_time=datetime.fromisoformat(row["snapshot_time"]),
+            )
+
+    async def get_session_snapshots(
+        self, session_id: str, limit: Optional[int] = None
+    ) -> list[SessionSnapshot]:
+        """
+        Get all snapshots for a session, ordered by time (newest first).
+
+        Args:
+            session_id: Session ID
+            limit: Optional limit on number of snapshots to return
+
+        Returns:
+            List of SessionSnapshot objects
+        """
+        query = """
+            SELECT * FROM session_snapshots
+            WHERE session_id = ?
+            ORDER BY snapshot_time DESC
+        """
+        params = [session_id]
+
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        snapshots = []
+        async with self.conn.execute(query, params) as cursor:
+            async for row in cursor:
+                snapshots.append(
+                    SessionSnapshot(
+                        id=row["id"],
+                        session_id=row["session_id"],
+                        current_url=row["current_url"],
+                        cookies=row["cookies"],
+                        local_storage=row["local_storage"],
+                        session_storage=row["session_storage"],
+                        viewport=row["viewport"],
+                        snapshot_time=datetime.fromisoformat(row["snapshot_time"]),
+                    )
+                )
+        return snapshots
+
+    async def cleanup_old_snapshots(self, session_id: str, keep_last: int = 10) -> None:
+        """
+        Delete old snapshots, keeping only the most recent N.
+
+        Args:
+            session_id: Session ID
+            keep_last: Number of snapshots to keep (default: 10)
+        """
+        await self.conn.execute(
+            """
+            DELETE FROM session_snapshots
+            WHERE session_id = ?
+            AND id NOT IN (
+                SELECT id FROM session_snapshots
+                WHERE session_id = ?
+                ORDER BY snapshot_time DESC
+                LIMIT ?
+            )
+            """,
+            (session_id, session_id, keep_last),
+        )
+        await self.conn.commit()
+
+    async def update_session_state_from_snapshot(
+        self, session_id: str, snapshot: SessionSnapshot
+    ) -> None:
+        """
+        Update session table with current state from snapshot (inline fields).
+
+        Args:
+            session_id: Session ID
+            snapshot: SessionSnapshot with current state
+        """
+        await self.conn.execute(
+            """
+            UPDATE sessions SET
+                current_url = ?,
+                cookies = ?,
+                local_storage = ?,
+                session_storage = ?,
+                viewport = ?,
+                last_snapshot_time = ?,
+                last_activity = ?
+            WHERE session_id = ?
+            """,
+            (
+                snapshot.current_url,
+                snapshot.cookies,
+                snapshot.local_storage,
+                snapshot.session_storage,
+                snapshot.viewport,
+                snapshot.snapshot_time.isoformat(),
+                datetime.now().isoformat(),
+                session_id,
+            ),
+        )
         await self.conn.commit()

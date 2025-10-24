@@ -1,5 +1,6 @@
 """FastAPI server application."""
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -8,7 +9,7 @@ import traceback
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -18,6 +19,7 @@ from ..database import Database, init_database
 from ..models.api import ErrorResponse, ProxyRequest, ProxyResponse, ResponseMetadata
 from ..models.database import DiffCursor, Request, Response, Session
 from .playwright_manager import PlaywrightManager
+from .session_state import SessionStateManager
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +31,8 @@ logger = logging.getLogger(__name__)
 # Global state
 playwright_manager: PlaywrightManager
 database: Database
+session_state_manager: SessionStateManager
+snapshot_task: Optional[asyncio.Task] = None
 
 
 def compute_hash(content: str) -> str:
@@ -43,10 +47,78 @@ def truncate_error(error_msg: str, max_length: int = 500) -> str:
     return error_msg[:max_length] + f"... (truncated, {len(error_msg)} total chars)"
 
 
+async def periodic_snapshot_task():
+    """
+    Background task that periodically captures session state for active sessions.
+
+    Phase 7: This task runs every session_snapshot_interval seconds and:
+    1. Finds all active sessions
+    2. Captures their current browser state
+    3. Saves snapshots to database
+    4. Cleans up old snapshots (keeps last N)
+    """
+    logger.info(
+        f"Starting periodic snapshot task (interval: {settings.session_snapshot_interval}s)"
+    )
+
+    while True:
+        try:
+            await asyncio.sleep(settings.session_snapshot_interval)
+
+            # Get all active sessions
+            active_sessions = await database.list_sessions(state="active")
+
+            if not active_sessions:
+                logger.debug("No active sessions to snapshot")
+                continue
+
+            logger.debug(f"Capturing state for {len(active_sessions)} active sessions")
+
+            for session in active_sessions:
+                try:
+                    # Capture current state
+                    snapshot = await session_state_manager.capture_state(
+                        session.session_id
+                    )
+
+                    if snapshot:
+                        # Save snapshot to database
+                        await database.save_session_snapshot(snapshot)
+
+                        # Update session's inline state fields
+                        await database.update_session_state_from_snapshot(
+                            session.session_id, snapshot
+                        )
+
+                        # Cleanup old snapshots (keep last N)
+                        await database.cleanup_old_snapshots(
+                            session.session_id, keep_last=settings.max_session_snapshots
+                        )
+
+                        logger.debug(f"Snapshot saved for session {session.session_id}")
+                    else:
+                        logger.warning(
+                            f"Failed to capture state for session {session.session_id}"
+                        )
+
+                except Exception as e:
+                    logger.error(
+                        f"Error capturing state for session {session.session_id}: {e}"
+                    )
+                    # Continue with other sessions even if one fails
+
+        except asyncio.CancelledError:
+            logger.info("Periodic snapshot task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Error in periodic snapshot task: {e}")
+            # Continue running even if there's an error
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global playwright_manager, database
+    global playwright_manager, database, session_state_manager, snapshot_task
 
     # Startup
     logger.info("Starting Playwright MCP Proxy server...")
@@ -62,10 +134,27 @@ async def lifespan(app: FastAPI):
     await playwright_manager.start()
     logger.info("Playwright subprocess started")
 
+    # Initialize session state manager (Phase 7)
+    session_state_manager = SessionStateManager(playwright_manager)
+    logger.info("Session state manager initialized")
+
+    # Start periodic snapshot task (Phase 7)
+    snapshot_task = asyncio.create_task(periodic_snapshot_task())
+    logger.info("Periodic snapshot task started")
+
     yield
 
     # Shutdown
     logger.info("Shutting down Playwright MCP Proxy server...")
+
+    # Stop periodic snapshot task
+    if snapshot_task:
+        snapshot_task.cancel()
+        try:
+            await snapshot_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Periodic snapshot task stopped")
 
     # Stop Playwright manager
     await playwright_manager.stop()
