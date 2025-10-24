@@ -27,6 +27,11 @@ MCP Client --> MCP Client --> HTTP Server --> Playwright MCP
   - Hash-based change detection
   - Cursor persistence across server restarts
   - `reset_cursor` parameter to get full content
+- **Session Recovery** (Phase 7): Sessions survive server restarts
+  - Automatic state snapshots every 30s (URL, cookies, localStorage, sessionStorage, viewport)
+  - Orphaned session detection on startup
+  - Resume sessions with full state restoration
+  - Classification: recoverable, stale, or closed based on snapshot age
 - **Subprocess Management**: Automatic health monitoring and restart for Playwright MCP
 
 ## Installation
@@ -181,6 +186,75 @@ Page snapshot available. Use get_content('xyz-789')
 - heading "Example Domain"
 ```
 
+## Session Recovery (Phase 7)
+
+Sessions now survive server restarts! The proxy automatically captures browser state every 30 seconds and can restore sessions after crashes or restarts.
+
+### How It Works
+
+1. **Automatic Snapshots**: While sessions are active, the server captures:
+   - Current URL
+   - Cookies
+   - localStorage
+   - sessionStorage
+   - Viewport size
+
+2. **Startup Detection**: When the server restarts, it automatically:
+   - Detects orphaned sessions (marked as "active" before shutdown)
+   - Classifies them based on snapshot age:
+     - **recoverable**: Recent snapshot (< 24h) - safe to resume
+     - **stale**: Old snapshot (> 24h) - may not work reliably
+     - **closed**: No snapshot available - cannot recover
+
+3. **Manual Resume**: Users can list and resume sessions via tools
+
+### Usage Example
+
+```
+# Before restart - working in a session
+> browser_navigate(url="https://example.com")
+> browser_type(element="search box", ref="e1", text="test query")
+# Server crashes or restarts...
+
+# After restart - resume your session
+> list_sessions(state="recoverable")
+Session ID: abc-123-def-456
+State: recoverable
+URL: https://example.com
+Snapshot age: 45 seconds
+
+> resume_session(session_id="abc-123-def-456")
+✓ Session resumed successfully
+Restored URL: https://example.com
+# Your browser is back at the same page with all state restored!
+```
+
+### HTTP API
+
+You can also use the HTTP endpoints directly:
+
+```bash
+# List recoverable sessions
+curl http://localhost:34501/sessions?state=recoverable
+
+# Resume a session
+curl -X POST http://localhost:34501/sessions/abc-123-def-456/resume
+```
+
+### Configuration
+
+- `SESSION_SNAPSHOT_INTERVAL`: How often to snapshot (default: 30s)
+- `MAX_SESSION_AGE`: Max age for recoverable sessions (default: 24h)
+- `MAX_SESSION_SNAPSHOTS`: How many snapshots to keep (default: 10)
+- `AUTO_REHYDRATE`: Auto-resume sessions on startup (default: false)
+
+### Limitations
+
+- Cookies captured via `document.cookie` (no httpOnly/secure flags)
+- Cannot capture JavaScript heap, running timers, or pending requests
+- Some sites may break if only storage is restored without full context
+- Viewport size captured but not currently restored (Playwright limitation)
+
 ## Configuration
 
 Configuration via environment variables (prefix: `PLAYWRIGHT_PROXY_`):
@@ -203,6 +277,12 @@ PLAYWRIGHT_PROXY_MAX_RESTART_ATTEMPTS=3
 PLAYWRIGHT_PROXY_RESTART_WINDOW=300
 PLAYWRIGHT_PROXY_SHUTDOWN_TIMEOUT=5
 
+# Session Recovery (Phase 7)
+PLAYWRIGHT_PROXY_SESSION_SNAPSHOT_INTERVAL=30    # Seconds between snapshots
+PLAYWRIGHT_PROXY_MAX_SESSION_AGE=86400           # Max age (24h) for recoverable sessions
+PLAYWRIGHT_PROXY_AUTO_REHYDRATE=false            # Auto-resume sessions on startup
+PLAYWRIGHT_PROXY_MAX_SESSION_SNAPSHOTS=10        # Keep last N snapshots per session
+
 # Logging
 PLAYWRIGHT_PROXY_LOG_LEVEL=INFO
 ```
@@ -214,6 +294,8 @@ Or create a `.env` file (see `.env.example`).
 ### Session Management
 
 - `create_new_session()` - Create a new browser session, returns `session_id`
+- `list_sessions(state?)` - List all sessions, optionally filtered by state (Phase 7)
+- `resume_session(session_id)` - Resume a recoverable/stale session after restart (Phase 7)
 
 ### Content Retrieval
 
@@ -239,11 +321,12 @@ Responses return metadata + ref_id instead of full content.
 
 ## Database Schema
 
-- **sessions** - Browser sessions (UUID, state, timestamps)
+- **sessions** - Browser sessions (UUID, state, timestamps, recovery fields)
 - **requests** - All proxied requests (ref_id, tool, params)
 - **responses** - Full responses as blobs (result, page_snapshot, console_logs)
 - **console_logs** - Normalized console entries (level, message, location)
 - **diff_cursors** - For Phase 2 diff support
+- **session_snapshots** - Phase 7 state snapshots (URL, cookies, storage, viewport)
 
 ## Development
 
@@ -301,10 +384,15 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run playw
 - [x] Cursor persistence across server restarts
 - [x] Comprehensive tests (8 additional tests)
 
-### Phase 3 (Important but Not Urgent)
-- [ ] Session state persistence
-- [ ] Restart recovery with session rehydration
-- [ ] `session_resume(session_id)` tool
+### Phase 7 (Complete)
+- [x] Session state persistence (URL, cookies, localStorage, sessionStorage, viewport)
+- [x] Automatic periodic snapshots every 30s
+- [x] Orphaned session detection on startup
+- [x] Session classification (recoverable/stale/closed)
+- [x] Restart recovery with session rehydration
+- [x] `list_sessions(state)` tool
+- [x] `resume_session(session_id)` tool
+- [x] Comprehensive tests (16 tests total)
 
 ## Troubleshooting
 
