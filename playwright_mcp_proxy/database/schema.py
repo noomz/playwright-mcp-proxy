@@ -10,8 +10,15 @@ CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
     last_activity TIMESTAMP NOT NULL,
-    state TEXT NOT NULL CHECK(state IN ('active', 'closed', 'error')),
-    metadata TEXT
+    state TEXT NOT NULL CHECK(state IN ('active', 'closed', 'error', 'recoverable', 'stale', 'failed')),
+    metadata TEXT,
+    -- Phase 7: Session recovery fields
+    current_url TEXT,
+    cookies TEXT,
+    local_storage TEXT,
+    session_storage TEXT,
+    viewport TEXT,
+    last_snapshot_time TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_state ON sessions(state);
@@ -61,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_console_logs_ref ON console_logs(ref_id);
 CREATE INDEX IF NOT EXISTS idx_console_logs_level ON console_logs(level);
 CREATE INDEX IF NOT EXISTS idx_console_logs_timestamp ON console_logs(timestamp);
 
--- Diff cursors table (Phase 2 - future)
+-- Diff cursors table (Phase 2)
 CREATE TABLE IF NOT EXISTS diff_cursors (
     ref_id TEXT PRIMARY KEY,
     cursor_position INTEGER NOT NULL,
@@ -69,6 +76,22 @@ CREATE TABLE IF NOT EXISTS diff_cursors (
     last_read TIMESTAMP NOT NULL,
     FOREIGN KEY (ref_id) REFERENCES responses(ref_id)
 );
+
+-- Session snapshots table (Phase 7: Session recovery)
+CREATE TABLE IF NOT EXISTS session_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    current_url TEXT,
+    cookies TEXT,
+    local_storage TEXT,
+    session_storage TEXT,
+    viewport TEXT,
+    snapshot_time TIMESTAMP NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_snapshots_session ON session_snapshots(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_snapshots_time ON session_snapshots(snapshot_time DESC);
 """
 
 

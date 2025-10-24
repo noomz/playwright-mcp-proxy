@@ -14,8 +14,19 @@ class Session(BaseModel):
     last_activity: datetime = Field(
         default_factory=datetime.now, description="Last activity timestamp"
     )
-    state: str = Field(default="active", description="Session state: active, closed, error")
+    state: str = Field(
+        default="active",
+        description="Session state: active, closed, error, recoverable, stale, failed"
+    )
     metadata: Optional[str] = Field(None, description="Additional metadata as JSON string")
+
+    # Phase 7: Session recovery fields
+    current_url: Optional[str] = Field(None, description="Current page URL")
+    cookies: Optional[str] = Field(None, description="Cookies as JSON array string")
+    local_storage: Optional[str] = Field(None, description="localStorage as JSON object string")
+    session_storage: Optional[str] = Field(None, description="sessionStorage as JSON object string")
+    viewport: Optional[str] = Field(None, description="Viewport as JSON object {width, height}")
+    last_snapshot_time: Optional[datetime] = Field(None, description="Last state snapshot time")
 
 
 class Request(BaseModel):
@@ -64,3 +75,16 @@ class DiffCursor(BaseModel):
         None, description="Hash of last returned content"
     )
     last_read: datetime = Field(default_factory=datetime.now, description="Last read timestamp")
+
+
+class SessionSnapshot(BaseModel):
+    """Session snapshot database model (Phase 7: Session recovery)."""
+
+    id: Optional[int] = Field(None, description="Auto-increment ID")
+    session_id: str = Field(..., description="Session UUID (FK to sessions)")
+    current_url: Optional[str] = Field(None, description="Current page URL")
+    cookies: Optional[str] = Field(None, description="Cookies as JSON array string")
+    local_storage: Optional[str] = Field(None, description="localStorage as JSON object string")
+    session_storage: Optional[str] = Field(None, description="sessionStorage as JSON object string")
+    viewport: Optional[str] = Field(None, description="Viewport as JSON object {width, height}")
+    snapshot_time: datetime = Field(default_factory=datetime.now, description="Snapshot timestamp")

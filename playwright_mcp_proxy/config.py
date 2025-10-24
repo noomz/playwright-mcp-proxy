@@ -60,6 +60,24 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
 
+    # Phase 7: Session recovery
+    session_snapshot_interval: int = Field(
+        default=30,
+        description="Seconds between session state snapshots",
+    )
+    max_session_age: int = Field(
+        default=86400,
+        description="Max age in seconds for recoverable sessions (default 24h)",
+    )
+    auto_rehydrate: bool = Field(
+        default=False,
+        description="Automatically rehydrate sessions on startup",
+    )
+    max_session_snapshots: int = Field(
+        default=10,
+        description="Keep last N snapshots per session",
+    )
+
     class Config:
         """Pydantic config."""
 
