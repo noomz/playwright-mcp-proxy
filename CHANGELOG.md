@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-10-24
+
+### Fixed
+
+- **Critical: asyncio buffer limit errors** (`asyncio.LimitOverrunError`)
+  - Implemented chunked reading in `playwright_manager.py` to handle responses >64KB
+  - Added `_read_line_chunked()` method that catches `LimitOverrunError` and reads in chunks
+  - Fixes "Separator is found, but chunk exceed the limit" errors when Playwright returns large page snapshots
+  - Solution based on https://github.com/ipython/ipython/issues/14005
+  - Now supports unlimited response sizes (no 64KB buffer limit)
+
+### Added
+
+- **Comprehensive error tracebacks**
+  - Added `traceback.format_exc()` to all error logging
+  - Helps diagnose production issues with full stack traces
+  - Applied to both HTTP server and subprocess manager
+
+- **TROUBLESHOOTING.md documentation**
+  - Common issues and solutions
+  - Debugging tips and health check commands
+  - Version-specific notes
+
+- **Test scripts**
+  - `examples/debug_playwright_response.py` - Debug response sizes
+  - `examples/test_click_error.py` - Test browser_click scenarios
+  - `examples/test_user_scenario.py` - Test specific user scenarios
+
+### Testing
+
+- Verified chunked reading handles responses >64KB
+- Confirmed `get_content()` still returns full page snapshots
+- All existing functionality preserved
+- No data loss (full content still accessible)
+
+## [0.2.2] - 2025-10-24
+
+### Fixed
+
+- **MCP client response sizes**
+  - Shortened success messages to single compact line
+  - Format: `✓ tool_name | ref_id | snapshot: get_content('ref_id')`
+  - Truncate all error messages to 200 chars max
+  - Prevents MCP protocol buffer overflow when sending responses back to upstream client
+
+### Impact
+
+- Reduced MCP client response messages from ~10 lines to 1 line
+- Helps avoid buffer limits in MCP protocol layer
+- Full content still accessible via `get_content()` and `get_console_content()`
+
 ## [0.2.1] - 2025-10-22
 
 ### Fixed
@@ -190,6 +241,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest, pytest-asyncio (testing)
 - ruff (formatting)
 
+[0.2.3]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yourusername/playwright-mcp-proxy/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourusername/playwright-mcp-proxy/releases/tag/v0.1.0
