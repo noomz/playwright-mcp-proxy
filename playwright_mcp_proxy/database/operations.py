@@ -46,8 +46,11 @@ class Database:
         """Create a new session."""
         await self.conn.execute(
             """
-            INSERT INTO sessions (session_id, created_at, last_activity, state, metadata)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO sessions (
+                session_id, created_at, last_activity, state, metadata,
+                current_url, cookies, local_storage, session_storage, viewport, last_snapshot_time
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session.session_id,
@@ -55,6 +58,12 @@ class Database:
                 session.last_activity.isoformat(),
                 session.state,
                 session.metadata,
+                session.current_url,
+                session.cookies,
+                session.local_storage,
+                session.session_storage,
+                session.viewport,
+                session.last_snapshot_time.isoformat() if session.last_snapshot_time else None,
             ),
         )
         await self.conn.commit()
@@ -73,6 +82,12 @@ class Database:
                 last_activity=datetime.fromisoformat(row["last_activity"]),
                 state=row["state"],
                 metadata=row["metadata"],
+                current_url=row["current_url"],
+                cookies=row["cookies"],
+                local_storage=row["local_storage"],
+                session_storage=row["session_storage"],
+                viewport=row["viewport"],
+                last_snapshot_time=datetime.fromisoformat(row["last_snapshot_time"]) if row["last_snapshot_time"] else None,
             )
 
     async def update_session_activity(self, session_id: str) -> None:
@@ -110,6 +125,12 @@ class Database:
                         last_activity=datetime.fromisoformat(row["last_activity"]),
                         state=row["state"],
                         metadata=row["metadata"],
+                        current_url=row["current_url"],
+                        cookies=row["cookies"],
+                        local_storage=row["local_storage"],
+                        session_storage=row["session_storage"],
+                        viewport=row["viewport"],
+                        last_snapshot_time=datetime.fromisoformat(row["last_snapshot_time"]) if row["last_snapshot_time"] else None,
                     )
                 )
         return sessions
