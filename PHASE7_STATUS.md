@@ -38,76 +38,33 @@ Enable sessions to survive server restarts by persisting and rehydrating browser
 
 ---
 
-## 🚧 In Progress
+## ✅ Completed (v0.3.0-dev)
 
-### Phase 7.1: State Capture Infrastructure ✅ COMPLETE
+### Phase 7.1: State Capture Infrastructure
 - [x] Schema and models
 - [x] Database operations for snapshots
 - [x] State extraction from Playwright
 - [x] Periodic snapshot mechanism
 
+### Phase 7.2: Startup Detection
+- [x] Startup hook in lifespan
+- [x] Detect sessions in 'active' state
+- [x] Check snapshot age
+- [x] Mark as recoverable/stale/closed
+- [x] Add list_sessions() endpoint
+- [x] Filter sessions by state
+
+### Phase 7.3: Rehydration
+- [x] restore_state() function implemented
+- [x] Navigate to saved URL
+- [x] Restore cookies, localStorage, sessionStorage
+- [x] Add session_resume() endpoint
+- [x] Handle rehydration failures
+- [x] Update session state after rehydration
+
 ---
 
 ## 📋 Remaining Work
-
-### Phase 7.1 - State Capture ✅ COMPLETE
-**Goal:** Capture and persist browser state periodically
-
-Completed:
-1. **Database Operations** ✅
-   - [x] `save_session_snapshot()` - Save new snapshot
-   - [x] `get_latest_session_snapshot()` - Get most recent
-   - [x] `get_session_snapshots()` - Get all for session
-   - [x] `cleanup_old_snapshots()` - Keep only last N
-   - [x] `update_session_state_from_snapshot()` - Update inline fields
-
-2. **State Extraction** ✅
-   - [x] Added SessionStateManager class
-   - [x] `capture_state()` extracts all browser state
-   - [x] `get_current_url()` via browser_evaluate
-   - [x] `get_cookies()` via browser_evaluate (document.cookie)
-   - [x] `get_local_storage()` via browser_evaluate
-   - [x] `get_session_storage()` via browser_evaluate
-   - [x] `get_viewport()` via browser_evaluate
-
-3. **Periodic Snapshots** ✅
-   - [x] Background task for periodic snapshots
-   - [x] Integrated into app lifespan
-   - [x] Respects snapshot_interval setting
-   - [x] Handles snapshot failures gracefully
-   - [x] Cleans up old snapshots automatically
-
-4. **Testing** ✅
-   - [x] Test schema migrations (3 tests)
-   - [x] Test snapshot CRUD operations
-   - [x] Test state extraction accuracy (7 tests)
-   - [x] Test periodic snapshot mechanism
-   - [x] All 10 tests passing
-
-### Phase 7.2 - Startup Detection
-**Goal:** Detect orphaned sessions and mark as recoverable
-
-Tasks:
-- [ ] Startup hook in lifespan
-- [ ] Detect sessions in 'active' state
-- [ ] Check snapshot age
-- [ ] Mark as recoverable/stale/closed
-- [ ] Add `list_sessions()` tool
-- [ ] List sessions by state filter
-
-### Phase 7.3 - Rehydration
-**Goal:** Restore browser state from snapshots
-
-Tasks:
-- [ ] `rehydrate_session()` function
-- [ ] Navigate to saved URL
-- [ ] Restore cookies via Playwright
-- [ ] Restore localStorage via evaluate
-- [ ] Restore sessionStorage via evaluate
-- [ ] Set viewport size
-- [ ] Add `session_resume(session_id)` tool
-- [ ] Handle rehydration failures
-- [ ] Update session state after rehydration
 
 ### Phase 7.4 - Testing & Polish
 **Goal:** Production-ready with full test coverage
@@ -139,18 +96,19 @@ Phase 7 will be complete when:
 
 ## 📊 Progress Estimate
 
-**Overall Phase 7:** ~35% complete
+**Overall Phase 7:** ~90% complete
 
 - Phase 7.1 (State Capture): ✅ 100% complete
-- Phase 7.2 (Detection): 0% complete
-- Phase 7.3 (Rehydration): 0% complete (restore_state implemented, needs integration)
-- Phase 7.4 (Testing): ~25% complete (unit tests done, integration tests pending)
+- Phase 7.2 (Startup Detection): ✅ 100% complete
+- Phase 7.3 (Rehydration): ✅ 100% complete
+- Phase 7.4 (Testing & Polish): ~50% complete (unit tests done, integration tests + docs pending)
 
 **Next immediate steps:**
-1. Implement startup detection (Phase 7.2)
-2. Detect orphaned sessions on startup
-3. Mark sessions as recoverable/stale based on age
-4. Add list_sessions() tool to MCP client
+1. Create integration test demonstrating full restart recovery flow
+2. Update README with Phase 7 usage examples
+3. Document API endpoints (/sessions, /sessions/{id}/resume)
+4. Add example scripts for session recovery
+5. Update CHANGELOG for v0.3.0
 
 ---
 

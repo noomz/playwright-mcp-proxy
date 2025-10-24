@@ -47,6 +47,85 @@ def truncate_error(error_msg: str, max_length: int = 500) -> str:
     return error_msg[:max_length] + f"... (truncated, {len(error_msg)} total chars)"
 
 
+async def detect_orphaned_sessions():
+    """
+    Phase 7.2: Detect and classify orphaned sessions on startup.
+
+    Called during server startup to find sessions that were active when the
+    server last stopped and classify them based on snapshot age:
+    - recoverable: Recent snapshot (< max_session_age), can be restored
+    - stale: Old snapshot (> max_session_age), may not work reliably
+    - closed: No snapshot or very old, cannot be recovered
+
+    This allows users to resume sessions after a server restart.
+    """
+    logger.info("Detecting orphaned sessions from previous server instance...")
+
+    try:
+        # Find all sessions still marked as "active"
+        # These are sessions that were running when the server stopped
+        active_sessions = await database.list_sessions(state="active")
+
+        if not active_sessions:
+            logger.info("No orphaned sessions found")
+            return
+
+        logger.info(f"Found {len(active_sessions)} potentially orphaned sessions")
+
+        recoverable_count = 0
+        stale_count = 0
+        closed_count = 0
+
+        for session in active_sessions:
+            try:
+                # Get the latest snapshot for this session
+                snapshot = await database.get_latest_session_snapshot(session.session_id)
+
+                if not snapshot:
+                    # No snapshot exists - cannot recover
+                    logger.info(
+                        f"Session {session.session_id}: No snapshot, marking as closed"
+                    )
+                    await database.update_session_state(session.session_id, "closed")
+                    closed_count += 1
+                    continue
+
+                # Calculate age of snapshot
+                age_seconds = (datetime.now() - snapshot.snapshot_time).total_seconds()
+
+                if age_seconds <= settings.max_session_age:
+                    # Recent snapshot - recoverable
+                    logger.info(
+                        f"Session {session.session_id}: Recent snapshot "
+                        f"({int(age_seconds)}s old), marking as recoverable"
+                    )
+                    await database.update_session_state(session.session_id, "recoverable")
+                    recoverable_count += 1
+                else:
+                    # Old snapshot - stale
+                    logger.info(
+                        f"Session {session.session_id}: Stale snapshot "
+                        f"({int(age_seconds)}s old), marking as stale"
+                    )
+                    await database.update_session_state(session.session_id, "stale")
+                    stale_count += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Error processing session {session.session_id}: {e}. "
+                    f"Marking as failed"
+                )
+                await database.update_session_state(session.session_id, "failed")
+
+        logger.info(
+            f"Session detection complete: {recoverable_count} recoverable, "
+            f"{stale_count} stale, {closed_count} closed"
+        )
+
+    except Exception as e:
+        logger.error(f"Error detecting orphaned sessions: {e}")
+
+
 async def periodic_snapshot_task():
     """
     Background task that periodically captures session state for active sessions.
@@ -138,6 +217,9 @@ async def lifespan(app: FastAPI):
     session_state_manager = SessionStateManager(playwright_manager)
     logger.info("Session state manager initialized")
 
+    # Detect orphaned sessions from previous instance (Phase 7.2)
+    await detect_orphaned_sessions()
+
     # Start periodic snapshot task (Phase 7)
     snapshot_task = asyncio.create_task(periodic_snapshot_task())
     logger.info("Periodic snapshot task started")
@@ -198,6 +280,111 @@ def create_app() -> FastAPI:
 
         logger.info(f"Created session {session_id}")
         return {"session_id": session_id}
+
+    @app.get("/sessions")
+    async def list_sessions(state: Optional[str] = None):
+        """
+        List all sessions, optionally filtered by state.
+
+        Phase 7.2: Allows users to see recoverable sessions after a restart.
+
+        Args:
+            state: Optional state filter (active, closed, error, recoverable, stale, failed)
+
+        Returns:
+            List of sessions with metadata
+        """
+        sessions = await database.list_sessions(state=state)
+
+        # Format sessions for response
+        result = []
+        for session in sessions:
+            session_data = {
+                "session_id": session.session_id,
+                "state": session.state,
+                "created_at": session.created_at.isoformat(),
+                "last_activity": session.last_activity.isoformat(),
+                "current_url": session.current_url,
+                "has_snapshot": session.last_snapshot_time is not None,
+            }
+
+            # Add snapshot age if available
+            if session.last_snapshot_time:
+                age_seconds = (datetime.now() - session.last_snapshot_time).total_seconds()
+                session_data["snapshot_age_seconds"] = int(age_seconds)
+
+            result.append(session_data)
+
+        return {"sessions": result, "count": len(result)}
+
+    @app.post("/sessions/{session_id}/resume")
+    async def resume_session(session_id: str):
+        """
+        Resume a recoverable session by restoring its state.
+
+        Phase 7.3: Allows users to resume sessions after server restart.
+
+        Args:
+            session_id: Session ID to resume
+
+        Returns:
+            Status of resume operation
+        """
+        # Get session
+        session = await database.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Only allow resuming recoverable or stale sessions
+        if session.state not in ["recoverable", "stale"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Session is {session.state}, cannot resume. "
+                f"Only recoverable or stale sessions can be resumed.",
+            )
+
+        try:
+            # Get latest snapshot
+            snapshot = await database.get_latest_session_snapshot(session_id)
+            if not snapshot:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No snapshot available for this session",
+                )
+
+            # Restore state
+            success = await session_state_manager.restore_state(snapshot)
+
+            if success:
+                # Update session state to active
+                await database.update_session_state(session_id, "active")
+                logger.info(f"Successfully resumed session {session_id}")
+
+                return {
+                    "session_id": session_id,
+                    "status": "resumed",
+                    "restored_url": snapshot.current_url,
+                    "snapshot_age_seconds": int(
+                        (datetime.now() - snapshot.snapshot_time).total_seconds()
+                    ),
+                }
+            else:
+                # Restoration failed
+                await database.update_session_state(session_id, "failed")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to restore session state",
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error resuming session {session_id}: {e}")
+            await database.update_session_state(session_id, "failed")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to resume session: {str(e)}",
+            )
 
     @app.post("/proxy", response_model=ProxyResponse)
     async def proxy_request(request: ProxyRequest):
