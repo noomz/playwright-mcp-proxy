@@ -31,7 +31,7 @@ TOOLS = [
     ),
     Tool(
         name="get_content",
-        description="Get page snapshot content from a previous request (Phase 2: with diff support)",
+        description="Get page snapshot content from a previous request (Phase 2: with diff support, grep-like context)",
         inputSchema={
             "type": "object",
             "properties": {
@@ -46,6 +46,14 @@ TOOLS = [
                 "reset_cursor": {
                     "type": "boolean",
                     "description": "Reset diff cursor and return full content (default: false)",
+                },
+                "before_lines": {
+                    "type": "integer",
+                    "description": "Number of context lines before match (like grep -B, default: 0)",
+                },
+                "after_lines": {
+                    "type": "integer",
+                    "description": "Number of context lines after match (like grep -A, default: 0)",
                 },
             },
             "required": ["ref_id"],
@@ -163,11 +171,19 @@ async def handle_tool_call(name: str, arguments: dict[str, Any]) -> list[TextCon
             ref_id = arguments["ref_id"]
             search_for = arguments.get("search_for", "")
             reset_cursor = arguments.get("reset_cursor", False)
+            before_lines = arguments.get("before_lines", 0)
+            after_lines = arguments.get("after_lines", 0)
+
             params = {}
             if search_for:
                 params["search_for"] = search_for
             if reset_cursor:
                 params["reset_cursor"] = "true"
+            if before_lines > 0:
+                params["before_lines"] = before_lines
+            if after_lines > 0:
+                params["after_lines"] = after_lines
+
             response = await http_client.get(f"{server_url}/content/{ref_id}", params=params)
             response.raise_for_status()
             data = response.json()

@@ -227,7 +227,13 @@ def create_app() -> FastAPI:
             )
 
     @app.get("/content/{ref_id}")
-    async def get_content(ref_id: str, search_for: str = "", reset_cursor: bool = False):
+    async def get_content(
+        ref_id: str,
+        search_for: str = "",
+        reset_cursor: bool = False,
+        before_lines: int = 0,
+        after_lines: int = 0,
+    ):
         """
         Get page snapshot content for a ref_id with diff support (Phase 2).
 
@@ -235,6 +241,8 @@ def create_app() -> FastAPI:
             ref_id: Reference ID
             search_for: Optional substring to filter by
             reset_cursor: If True, reset diff cursor and return full content
+            before_lines: Number of context lines before match (like grep -B)
+            after_lines: Number of context lines after match (like grep -A)
 
         Returns:
             Page snapshot content (diff or full based on cursor state)
@@ -248,10 +256,41 @@ def create_app() -> FastAPI:
 
         content = response.page_snapshot
 
-        # Apply search filter if provided (before diff logic)
+        # Apply search filter with context lines if provided (before diff logic)
         if search_for:
-            lines = [line for line in content.split("\n") if search_for in line]
-            content = "\n".join(lines)
+            all_lines = content.split("\n")
+            matching_indices = set()
+
+            # Find all matching line indices
+            for i, line in enumerate(all_lines):
+                if search_for in line:
+                    # Add the matching line
+                    matching_indices.add(i)
+                    # Add context lines before
+                    for b in range(1, before_lines + 1):
+                        if i - b >= 0:
+                            matching_indices.add(i - b)
+                    # Add context lines after
+                    for a in range(1, after_lines + 1):
+                        if i + a < len(all_lines):
+                            matching_indices.add(i + a)
+
+            # Extract lines in order, adding separator for gaps
+            if matching_indices:
+                result_lines = []
+                sorted_indices = sorted(matching_indices)
+                prev_idx = None
+
+                for idx in sorted_indices:
+                    # Add separator if there's a gap
+                    if prev_idx is not None and idx - prev_idx > 1:
+                        result_lines.append("--")
+                    result_lines.append(all_lines[idx])
+                    prev_idx = idx
+
+                content = "\n".join(result_lines)
+            else:
+                content = ""
 
         # Phase 2: Diff logic
         if reset_cursor:
