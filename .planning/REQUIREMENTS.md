@@ -56,21 +56,21 @@ Deferred to future milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPS-01 | TBD | Pending |
-| DEPS-02 | TBD | Pending |
-| DEPS-03 | TBD | Pending |
-| BUGF-01 | TBD | Pending |
-| BUGF-02 | TBD | Pending |
-| BUGF-03 | TBD | Pending |
-| PERF-01 | TBD | Pending |
-| PERF-02 | TBD | Pending |
-| SECR-01 | TBD | Pending |
+| DEPS-01 | Phase 1 | Pending |
+| DEPS-02 | Phase 1 | Pending |
+| DEPS-03 | Phase 1 | Pending |
+| BUGF-01 | Phase 2 | Pending |
+| BUGF-02 | Phase 2 | Pending |
+| BUGF-03 | Phase 2 | Pending |
+| PERF-01 | Phase 3 | Pending |
+| PERF-02 | Phase 4 | Pending |
+| SECR-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
