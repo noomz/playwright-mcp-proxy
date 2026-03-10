@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Dependency Hygiene** - Correct all dependency declarations and version floors in pyproject.toml
 - [x] **Phase 2: Bug Fixes** - Fix data-integrity bugs in param serialization, console error counting, and log filtering (completed 2026-03-10)
 - [x] **Phase 3: Transaction Batching** - Batch related DB writes into single transactions to reduce commit overhead (completed 2026-03-10)
-- [ ] **Phase 4: Evaluate Consolidation & Security** - Combine 5 evaluate RPCs into 1 and close JS injection surface in session state
+- [x] **Phase 4: Evaluate Consolidation & Security** - Combine 5 evaluate RPCs into 1 and close JS injection surface in session state (completed 2026-03-10)
 
 ## Phase Details
 
@@ -82,4 +82,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
-| 4. Evaluate Consolidation & Security | 0/1 | Not started | - |
+| 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |

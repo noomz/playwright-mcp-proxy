@@ -22,11 +22,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Performance
 
 - [x] **PERF-01**: Related database operations batched into single transactions (reduce 3+ commits per request to 1)
-- [ ] **PERF-02**: Session state capture combines 5 sequential `browser_evaluate` RPCs into single call
+- [x] **PERF-02**: Session state capture combines 5 sequential `browser_evaluate` RPCs into single call
 
 ### Security
 
-- [ ] **SECR-01**: `restore_state()` uses JSON embedding pattern instead of f-string interpolation to prevent JS injection
+- [x] **SECR-01**: `restore_state()` uses JSON embedding pattern instead of f-string interpolation to prevent JS injection
 
 ## v2 Requirements
 
@@ -63,8 +63,8 @@ Deferred to future milestone.
 | BUGF-02 | Phase 2 | Complete |
 | BUGF-03 | Phase 2 | Complete |
 | PERF-01 | Phase 3 | Complete |
-| PERF-02 | Phase 4 | Pending |
-| SECR-01 | Phase 4 | Pending |
+| PERF-02 | Phase 4 | Complete |
+| SECR-01 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 9 total
