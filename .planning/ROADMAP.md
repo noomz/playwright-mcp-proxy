@@ -54,10 +54,10 @@ Plans:
   1. The proxy endpoint commits the request record before the Playwright RPC, then batches all post-RPC writes (response + session activity update) in a single transaction
   2. A failed Playwright RPC still has the request record persisted in the database (audit trail preserved)
   3. Total SQLite commits per proxy request are reduced from 3+ to 2 (one pre-RPC, one post-RPC)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Add no-commit DB method variants and restructure proxy_request to 2-commit boundaries
 
 ### Phase 4: Evaluate Consolidation & Security
 **Goal**: Session state capture uses a single combined evaluate call instead of 5 sequential RPCs, and JS injection risk in state restoration is eliminated
@@ -81,5 +81,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
-| 3. Transaction Batching | 0/0 | Not started | - |
+| 3. Transaction Batching | 0/1 | Not started | - |
 | 4. Evaluate Consolidation & Security | 0/0 | Not started | - |
