@@ -67,10 +67,10 @@ Plans:
   1. Session state capture issues 1 `browser_evaluate` RPC instead of 5, returning all state properties in a single call
   2. The combined JS function handles individual property failures gracefully (try/catch per property) so partial state is still captured
   3. `restore_state()` passes data via JSON embedding pattern (not f-string interpolation), eliminating the JS injection surface
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Consolidate capture to 1 RPC with per-property try/catch, fix restore JS injection via json.dumps embedding
 
 ## Progress
 
@@ -82,4 +82,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
-| 4. Evaluate Consolidation & Security | 0/0 | Not started | - |
+| 4. Evaluate Consolidation & Security | 0/1 | Not started | - |
