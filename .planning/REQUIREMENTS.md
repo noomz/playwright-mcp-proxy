@@ -15,9 +15,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Bug Fixes
 
-- [ ] **BUGF-01**: Request params serialized via `json.dumps()` instead of `str()` for valid JSON storage
-- [ ] **BUGF-02**: `console_error_count` in proxy response metadata reflects actual error count from stored logs
-- [ ] **BUGF-03**: Console log level filtering parses raw blob in fallback path when no normalized logs exist
+- [x] **BUGF-01**: Request params serialized via `json.dumps()` instead of `str()` for valid JSON storage
+- [x] **BUGF-02**: `console_error_count` in proxy response metadata reflects actual error count from stored logs
+- [x] **BUGF-03**: Console log level filtering parses raw blob in fallback path when no normalized logs exist
 
 ### Performance
 
@@ -59,9 +59,9 @@ Deferred to future milestone.
 | DEPS-01 | Phase 1 | Complete |
 | DEPS-02 | Phase 1 | Complete |
 | DEPS-03 | Phase 1 | Complete |
-| BUGF-01 | Phase 2 | Pending |
-| BUGF-02 | Phase 2 | Pending |
-| BUGF-03 | Phase 2 | Pending |
+| BUGF-01 | Phase 2 | Complete |
+| BUGF-02 | Phase 2 | Complete |
+| BUGF-03 | Phase 2 | Complete |
 | PERF-01 | Phase 3 | Pending |
 | PERF-02 | Phase 4 | Pending |
 | SECR-01 | Phase 4 | Pending |

@@ -13,7 +13,7 @@ This milestone cleans up accumulated tech debt in a working MCP proxy system. It
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Dependency Hygiene** - Correct all dependency declarations and version floors in pyproject.toml
-- [ ] **Phase 2: Bug Fixes** - Fix data-integrity bugs in param serialization, console error counting, and log filtering
+- [x] **Phase 2: Bug Fixes** - Fix data-integrity bugs in param serialization, console error counting, and log filtering (completed 2026-03-10)
 - [ ] **Phase 3: Transaction Batching** - Batch related DB writes into single transactions to reduce commit overhead
 - [ ] **Phase 4: Evaluate Consolidation & Security** - Combine 5 evaluate RPCs into 1 and close JS injection surface in session state
 
@@ -80,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
-| 2. Bug Fixes | 0/1 | Not started | - |
+| 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 0/0 | Not started | - |
 | 4. Evaluate Consolidation & Security | 0/0 | Not started | - |
