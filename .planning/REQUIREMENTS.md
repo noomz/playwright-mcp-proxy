@@ -21,7 +21,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Performance
 
-- [ ] **PERF-01**: Related database operations batched into single transactions (reduce 3+ commits per request to 1)
+- [x] **PERF-01**: Related database operations batched into single transactions (reduce 3+ commits per request to 1)
 - [ ] **PERF-02**: Session state capture combines 5 sequential `browser_evaluate` RPCs into single call
 
 ### Security
@@ -62,7 +62,7 @@ Deferred to future milestone.
 | BUGF-01 | Phase 2 | Complete |
 | BUGF-02 | Phase 2 | Complete |
 | BUGF-03 | Phase 2 | Complete |
-| PERF-01 | Phase 3 | Pending |
+| PERF-01 | Phase 3 | Complete |
 | PERF-02 | Phase 4 | Pending |
 | SECR-01 | Phase 4 | Pending |
 
