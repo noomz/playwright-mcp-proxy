@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException
 from ..config import settings
 from ..database import Database, init_database
 from ..models.api import ProxyRequest, ProxyResponse, ResponseMetadata
-from ..models.database import DiffCursor, Request, Response, Session
+from ..models.database import ConsoleLog, DiffCursor, Request, Response, Session
 from .playwright_manager import PlaywrightManager
 from .session_state import SessionStateManager
 
@@ -76,8 +76,12 @@ async def detect_orphaned_sessions():
 
         for session in active_sessions:
             try:
+                logger.debug(f"Processing session {session.session_id}")
+
                 # Get the latest snapshot for this session
+                logger.debug(f"Getting latest snapshot for session {session.session_id}")
                 snapshot = await database.get_latest_session_snapshot(session.session_id)
+                logger.debug(f"Got snapshot for session {session.session_id}: {snapshot is not None}")
 
                 if not snapshot:
                     # No snapshot exists - cannot recover
@@ -89,7 +93,9 @@ async def detect_orphaned_sessions():
                     continue
 
                 # Calculate age of snapshot
+                logger.debug(f"Accessing snapshot_time for session {session.session_id}")
                 age_seconds = (datetime.now() - snapshot.snapshot_time).total_seconds()
+                logger.debug(f"Calculated age for session {session.session_id}: {age_seconds}s")
 
                 if age_seconds <= settings.max_session_age:
                     # Recent snapshot - recoverable
@@ -108,9 +114,15 @@ async def detect_orphaned_sessions():
                     await database.update_session_state(session.session_id, "stale")
                     stale_count += 1
 
+            except (KeyError, IndexError) as e:
+                logger.error(
+                    f"Error processing session {session.session_id} - {type(e).__name__} with key/index: {e}. "
+                    f"Marking as failed"
+                )
+                await database.update_session_state(session.session_id, "failed")
             except Exception as e:
                 logger.error(
-                    f"Error processing session {session.session_id}: {e}. "
+                    f"Error processing session {session.session_id}: {type(e).__name__}: {e}. "
                     f"Marking as failed"
                 )
                 await database.update_session_state(session.session_id, "failed")
@@ -120,8 +132,10 @@ async def detect_orphaned_sessions():
             f"{stale_count} stale, {closed_count} closed"
         )
 
+    except (KeyError, IndexError) as e:
+        logger.error(f"Error detecting orphaned sessions - {type(e).__name__} with key/index: {e}")
     except Exception as e:
-        logger.error(f"Error detecting orphaned sessions: {e}")
+        logger.error(f"Error detecting orphaned sessions: {type(e).__name__}: {e}")
 
 
 async def periodic_snapshot_task():
@@ -178,17 +192,25 @@ async def periodic_snapshot_task():
                             f"Failed to capture state for session {session.session_id}"
                         )
 
+                except (KeyError, IndexError) as e:
+                    logger.error(
+                        f"Error capturing state for session {session.session_id} - {type(e).__name__} with key/index: {e}"
+                    )
+                    # Continue with other sessions even if one fails
                 except Exception as e:
                     logger.error(
-                        f"Error capturing state for session {session.session_id}: {e}"
+                        f"Error capturing state for session {session.session_id}: {type(e).__name__}: {e}"
                     )
                     # Continue with other sessions even if one fails
 
         except asyncio.CancelledError:
             logger.info("Periodic snapshot task cancelled")
             break
+        except (KeyError, IndexError) as e:
+            logger.error(f"Error in periodic snapshot task - {type(e).__name__} with key/index: {e}")
+            # Continue running even if there's an error
         except Exception as e:
-            logger.error(f"Error in periodic snapshot task: {e}")
+            logger.error(f"Error in periodic snapshot task: {type(e).__name__}: {e}")
             # Continue running even if there's an error
 
 
@@ -243,6 +265,62 @@ async def lifespan(app: FastAPI):
     await database.close()
 
     logger.info("Shutdown complete")
+
+
+# Console log severity ordering (matches Playwright's consoleMessageLevels)
+CONSOLE_LEVEL_ORDER = ["error", "warning", "info", "debug"]
+
+
+def _get_level_from_prefix(line: str) -> str | None:
+    """Extract normalized level from [LEVEL] prefix. Returns schema-compatible level or None."""
+    if not line.startswith("["):
+        return None
+    bracket_end = line.find("]")
+    if bracket_end == -1:
+        return None
+    prefix = line[1:bracket_end].lower()
+    if prefix in ("error", "assert"):
+        return "error"
+    elif prefix == "warning":
+        return "warn"  # schema uses 'warn' not 'warning'
+    elif prefix in ("debug", "trace", "clear", "endgroup", "profile",
+                    "profileend", "startgroup", "startgroupcollapsed"):
+        return "debug"
+    else:
+        return "info"  # log, info, count, dir, dirxml, table, time, timeend, etc.
+
+
+def _parse_console_blob(blob: str) -> list[dict]:
+    """Parse plain-text console log blob into structured entries."""
+    entries = []
+    for line in blob.split("\n"):
+        if not line.strip():
+            continue
+        level = _get_level_from_prefix(line)
+        if level is None:
+            continue
+        entries.append({"level": level, "text": line})
+    return entries
+
+
+def _filter_console_blob_by_level(blob: str, threshold_level: str) -> str:
+    """Filter blob lines by severity threshold (matches Playwright's shouldIncludeMessage)."""
+    if not blob:
+        return ""
+    threshold_idx = CONSOLE_LEVEL_ORDER.index(threshold_level) if threshold_level in CONSOLE_LEVEL_ORDER else 2
+    result_lines = []
+    for line in blob.split("\n"):
+        if not line.strip():
+            continue
+        level = _get_level_from_prefix(line)
+        if level is None:
+            continue
+        # _get_level_from_prefix returns 'warn' for schema; need 'warning' for CONSOLE_LEVEL_ORDER lookup
+        lookup_level = "warning" if level == "warn" else level
+        msg_idx = CONSOLE_LEVEL_ORDER.index(lookup_level) if lookup_level in CONSOLE_LEVEL_ORDER else 2
+        if msg_idx <= threshold_idx:
+            result_lines.append(line)
+    return "\n".join(result_lines)
 
 
 def create_app() -> FastAPI:
@@ -410,7 +488,7 @@ def create_app() -> FastAPI:
             ref_id=ref_id,
             session_id=request.session_id,
             tool_name=request.tool,
-            params=str(request.params),  # Store as JSON string
+            params=json.dumps(request.params),  # Store as JSON string
             timestamp=datetime.now(),
         )
         await database.create_request(db_request)
@@ -455,12 +533,30 @@ def create_app() -> FastAPI:
             )
             await database.create_response(db_response)
 
+            # Parse console blob and populate normalized table (BUGF-02)
+            if console_logs_data:
+                entries = _parse_console_blob(console_logs_data)
+                if entries:
+                    logs = [
+                        ConsoleLog(
+                            ref_id=ref_id,
+                            level=entry["level"],
+                            message=entry["text"],
+                            timestamp=datetime.now(),
+                        )
+                        for entry in entries
+                    ]
+                    await database.create_console_logs_batch(logs)
+
+            # Get actual error count from normalized table (BUGF-02)
+            error_count = await database.get_console_error_count(ref_id)
+
             # Build metadata
             metadata = ResponseMetadata(
                 tool=request.tool,
                 has_snapshot=page_snapshot is not None,
                 has_console_logs=console_logs_data is not None,
-                console_error_count=0,  # TODO: Parse and count errors
+                console_error_count=error_count,
             )
 
             return ProxyResponse(
@@ -643,8 +739,10 @@ def create_app() -> FastAPI:
 
         # Fallback to stored console_logs blob
         if response.console_logs:
-            content = response.console_logs
-            # TODO: Parse JSON and filter by level if needed
+            if level:
+                content = _filter_console_blob_by_level(response.console_logs, level)
+            else:
+                content = response.console_logs
             return {"content": content}
 
         return {"content": ""}
