@@ -97,6 +97,13 @@ class Database:
         )
         await self.conn.commit()
 
+    async def update_session_activity_no_commit(self, session_id: str) -> None:
+        """Update session last activity timestamp without committing (for transaction batching)."""
+        await self.conn.execute(
+            "UPDATE sessions SET last_activity = ? WHERE session_id = ?",
+            (datetime.now().isoformat(), session_id),
+        )
+
     async def update_session_state(self, session_id: str, state: str) -> None:
         """Update session state."""
         await self.conn.execute(
@@ -104,6 +111,13 @@ class Database:
             (state, datetime.now().isoformat(), session_id),
         )
         await self.conn.commit()
+
+    async def update_session_state_no_commit(self, session_id: str, state: str) -> None:
+        """Update session state without committing (for transaction batching)."""
+        await self.conn.execute(
+            "UPDATE sessions SET state = ?, last_activity = ? WHERE session_id = ?",
+            (state, datetime.now().isoformat(), session_id),
+        )
 
     async def list_sessions(self, state: Optional[str] = None) -> list[Session]:
         """List all sessions, optionally filtered by state."""
@@ -117,21 +131,43 @@ class Database:
         sessions = []
         async with self.conn.execute(query, params) as cursor:
             async for row in cursor:
-                sessions.append(
-                    Session(
-                        session_id=row["session_id"],
-                        created_at=datetime.fromisoformat(row["created_at"]),
-                        last_activity=datetime.fromisoformat(row["last_activity"]),
-                        state=row["state"],
-                        metadata=row["metadata"],
-                        current_url=row["current_url"],
-                        cookies=row["cookies"],
-                        local_storage=row["local_storage"],
-                        session_storage=row["session_storage"],
-                        viewport=row["viewport"],
-                        last_snapshot_time=datetime.fromisoformat(row["last_snapshot_time"]) if row["last_snapshot_time"] else None,
+                try:
+                    # Debug: Check each field access
+                    fields_to_access = [
+                        "session_id", "created_at", "last_activity", "state", "metadata",
+                        "current_url", "cookies", "local_storage", "session_storage",
+                        "viewport", "last_snapshot_time"
+                    ]
+                    for field in fields_to_access:
+                        try:
+                            _ = row[field]
+                        except (KeyError, IndexError) as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.error(f"Missing field '{field}' in sessions table: {type(e).__name__}")
+                            logger.error(f"Available keys in row: {list(row.keys())}")
+                            raise
+
+                    sessions.append(
+                        Session(
+                            session_id=row["session_id"],
+                            created_at=datetime.fromisoformat(row["created_at"]),
+                            last_activity=datetime.fromisoformat(row["last_activity"]),
+                            state=row["state"],
+                            metadata=row["metadata"],
+                            current_url=row["current_url"],
+                            cookies=row["cookies"],
+                            local_storage=row["local_storage"],
+                            session_storage=row["session_storage"],
+                            viewport=row["viewport"],
+                            last_snapshot_time=datetime.fromisoformat(row["last_snapshot_time"]) if row["last_snapshot_time"] else None,
+                        )
                     )
-                )
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error creating Session from row: {e}")
+                    raise
         return sessions
 
     # Request operations
@@ -171,6 +207,10 @@ class Database:
 
     # Response operations
 
+    async def commit(self) -> None:
+        """Explicitly commit the current transaction."""
+        await self.conn.commit()
+
     async def create_response(self, response: Response) -> None:
         """Create a new response."""
         await self.conn.execute(
@@ -190,6 +230,25 @@ class Database:
             ),
         )
         await self.conn.commit()
+
+    async def create_response_no_commit(self, response: Response) -> None:
+        """Create a new response without committing (for transaction batching)."""
+        await self.conn.execute(
+            """
+            INSERT INTO responses
+            (ref_id, status, result, page_snapshot, console_logs, error_message, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                response.ref_id,
+                response.status,
+                response.result,
+                response.page_snapshot,
+                response.console_logs,
+                response.error_message,
+                response.timestamp.isoformat(),
+            ),
+        )
 
     async def get_response(self, ref_id: str) -> Optional[Response]:
         """Get response by ref_id."""
@@ -244,6 +303,22 @@ class Database:
             ],
         )
         await self.conn.commit()
+
+    async def create_console_logs_batch_no_commit(self, logs: list[ConsoleLog]) -> None:
+        """Create multiple console log entries in a batch without committing (for transaction batching)."""
+        if not logs:
+            return
+
+        await self.conn.executemany(
+            """
+            INSERT INTO console_logs (ref_id, level, message, timestamp, location)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (log.ref_id, log.level, log.message, log.timestamp.isoformat(), log.location)
+                for log in logs
+            ],
+        )
 
     async def get_console_logs(
         self, ref_id: str, level: Optional[str] = None
@@ -375,16 +450,36 @@ class Database:
             row = await cursor.fetchone()
             if not row:
                 return None
-            return SessionSnapshot(
-                id=row["id"],
-                session_id=row["session_id"],
-                current_url=row["current_url"],
-                cookies=row["cookies"],
-                local_storage=row["local_storage"],
-                session_storage=row["session_storage"],
-                viewport=row["viewport"],
-                snapshot_time=datetime.fromisoformat(row["snapshot_time"]),
-            )
+
+            # Debug: Log which fields are trying to access
+            try:
+                fields_to_access = ["id", "session_id", "current_url", "cookies",
+                                   "local_storage", "session_storage", "viewport", "snapshot_time"]
+                for field in fields_to_access:
+                    try:
+                        _ = row[field]
+                    except (KeyError, IndexError) as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Missing field '{field}' in session_snapshots row: {type(e).__name__}")
+                        logger.error(f"Available keys in row: {list(row.keys())}")
+                        raise
+
+                return SessionSnapshot(
+                    id=row["id"],
+                    session_id=row["session_id"],
+                    current_url=row["current_url"],
+                    cookies=row["cookies"],
+                    local_storage=row["local_storage"],
+                    session_storage=row["session_storage"],
+                    viewport=row["viewport"],
+                    snapshot_time=datetime.fromisoformat(row["snapshot_time"]),
+                )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating SessionSnapshot from row: {e}")
+                raise
 
     async def get_session_snapshots(
         self, session_id: str, limit: Optional[int] = None

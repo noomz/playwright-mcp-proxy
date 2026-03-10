@@ -492,9 +492,7 @@ def create_app() -> FastAPI:
             timestamp=datetime.now(),
         )
         await database.create_request(db_request)
-
-        # Update session activity
-        await database.update_session_activity(request.session_id)
+        # COMMIT 1 is internal to create_request (audit trail: request is durable before RPC fires)
 
         try:
             # Send request to Playwright MCP
@@ -531,7 +529,7 @@ def create_app() -> FastAPI:
                 console_logs=console_logs_data,
                 timestamp=datetime.now(),
             )
-            await database.create_response(db_response)
+            await database.create_response_no_commit(db_response)
 
             # Parse console blob and populate normalized table (BUGF-02)
             if console_logs_data:
@@ -546,9 +544,16 @@ def create_app() -> FastAPI:
                         )
                         for entry in entries
                     ]
-                    await database.create_console_logs_batch(logs)
+                    await database.create_console_logs_batch_no_commit(logs)
+
+            # Update session activity (moved from pre-RPC to post-RPC batch)
+            await database.update_session_activity_no_commit(request.session_id)
+
+            # COMMIT 2: batch all post-RPC writes in a single commit
+            await database.commit()
 
             # Get actual error count from normalized table (BUGF-02)
+            # Runs after commit — same connection sees its own writes
             error_count = await database.get_console_error_count(ref_id)
 
             # Build metadata
@@ -575,17 +580,20 @@ def create_app() -> FastAPI:
             # Truncate error message for storage and MCP response
             truncated_error = truncate_error(error_str, max_length=500)
 
-            # Store error response
+            # Store error response and update session state — batch in single commit
             db_response = Response(
                 ref_id=ref_id,
                 status="error",
                 error_message=error_str,  # Store full error in DB
                 timestamp=datetime.now(),
             )
-            await database.create_response(db_response)
+            await database.create_response_no_commit(db_response)
 
-            # Update session state to error
-            await database.update_session_state(request.session_id, "error")
+            # Update session state to error (no-commit, batched with response)
+            await database.update_session_state_no_commit(request.session_id, "error")
+
+            # COMMIT 2: batch error response + session state update
+            await database.commit()
 
             return ProxyResponse(
                 ref_id=ref_id,
