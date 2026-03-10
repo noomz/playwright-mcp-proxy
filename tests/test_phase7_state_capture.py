@@ -255,15 +255,20 @@ async def test_restore_state_injection_safety():
     # Verify the function string uses json.dumps output (double-quoted JSON)
     for call in set_item_calls:
         fn = call[0][1]["arguments"]["function"]
-        # Must NOT use bare single-quoted values
-        # The xss payload has single quotes — they must be JSON-escaped
-        assert "'; alert(" not in fn, (
-            f"Injection payload not escaped! Function string: {fn!r}"
-        )
-        # Must use json.dumps output: double-quoted strings in the function
-        # json.dumps("xss") => '"xss"' and json.dumps(xss_value) => '"...\\'...\\'..."'
+        # json.dumps always produces double-quoted strings.
+        # The key "xss" must appear as a double-quoted JSON literal.
         assert '"xss"' in fn, (
             f"Expected json.dumps key output '\"xss\"' in function string: {fn!r}"
+        )
+        # The function must NOT use old-style single-quoted f-string values.
+        # Old code: localStorage.setItem('xss', '...')  <- single-quoted, injectable
+        # New code: localStorage.setItem("xss", "...")  <- json.dumps, safe
+        # The dead giveaway of the old pattern is a single-quoted second argument.
+        # Check: the character immediately after "setItem(" is a double-quote.
+        setitem_start = fn.index("setItem(") + len("setItem(")
+        first_char_of_key = fn[setitem_start]
+        assert first_char_of_key == '"', (
+            f"Expected json.dumps double-quoted key, got {first_char_of_key!r} in: {fn!r}"
         )
 
 

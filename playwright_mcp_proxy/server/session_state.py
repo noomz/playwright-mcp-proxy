@@ -27,12 +27,15 @@ class SessionStateManager:
         """
         Capture current browser state for a session.
 
-        Extracts:
+        Extracts in a single combined RPC:
         - Current URL
         - Cookies
         - localStorage
         - sessionStorage
         - Viewport size
+
+        Each property has its own try/catch in the JS function so a SecurityError
+        on one property does not prevent the others from being captured.
 
         Args:
             session_id: Session ID to capture state for
@@ -41,71 +44,44 @@ class SessionStateManager:
             SessionSnapshot with captured state, or None if capture fails
         """
         try:
-            # 1. Get current URL using browser_evaluate
-            url_result = await self.playwright.send_request(
+            # Single combined browser_evaluate RPC (PERF-02)
+            combined_js = """() => {
+    const s = {};
+    try { s.url = window.location.href; } catch(e) { s.url = null; }
+    try { s.cookies = document.cookie; } catch(e) { s.cookies = ""; }
+    try { s.localStorage = JSON.stringify(localStorage); } catch(e) { s.localStorage = "{}"; }
+    try { s.sessionStorage = JSON.stringify(sessionStorage); } catch(e) { s.sessionStorage = "{}"; }
+    try { s.viewport = JSON.stringify({width: window.innerWidth, height: window.innerHeight}); } catch(e) { s.viewport = "{}"; }
+    return s;
+}"""
+
+            result = await self.playwright.send_request(
                 "tools/call",
                 {
                     "name": "browser_evaluate",
                     "arguments": {
-                        "function": "() => window.location.href",
+                        "function": combined_js,
                     },
                 },
             )
-            current_url = self._extract_evaluate_result(url_result)
 
-            # 2. Get cookies - Playwright MCP likely exposes this via context
-            # For now, we'll use browser_evaluate to get document.cookie
-            # In a real implementation, we'd want to use the Playwright context API
-            # which gives us full cookie objects with domain, path, httpOnly, etc.
-            cookies_result = await self.playwright.send_request(
-                "tools/call",
-                {
-                    "name": "browser_evaluate",
-                    "arguments": {
-                        "function": "() => document.cookie",
-                    },
-                },
-            )
-            cookies_str = self._extract_evaluate_result(cookies_result)
+            raw_text = self._extract_evaluate_result(result)
+            state = json.loads(raw_text) if raw_text else {}
 
-            # Store as JSON array for better structure (convert from cookie string)
+            # Extract each property with fallbacks for null (partial failure)
+            current_url = state.get("url") or ""
+            cookies_str = state.get("cookies") or ""
+            local_storage_raw = state.get("localStorage")
+            session_storage_raw = state.get("sessionStorage")
+            viewport_raw = state.get("viewport")
+
+            # Normalise nulls from JS try/catch fallbacks
+            local_storage = local_storage_raw if local_storage_raw is not None else "{}"
+            session_storage = session_storage_raw if session_storage_raw is not None else "{}"
+            viewport = viewport_raw if viewport_raw is not None else "{}"
+
+            # Parse cookies string into structured JSON
             cookies_json = json.dumps(self._parse_cookie_string(cookies_str))
-
-            # 3. Get localStorage
-            localstorage_result = await self.playwright.send_request(
-                "tools/call",
-                {
-                    "name": "browser_evaluate",
-                    "arguments": {
-                        "function": "() => JSON.stringify(localStorage)",
-                    },
-                },
-            )
-            local_storage = self._extract_evaluate_result(localstorage_result)
-
-            # 4. Get sessionStorage
-            sessionstorage_result = await self.playwright.send_request(
-                "tools/call",
-                {
-                    "name": "browser_evaluate",
-                    "arguments": {
-                        "function": "() => JSON.stringify(sessionStorage)",
-                    },
-                },
-            )
-            session_storage = self._extract_evaluate_result(sessionstorage_result)
-
-            # 5. Get viewport size
-            viewport_result = await self.playwright.send_request(
-                "tools/call",
-                {
-                    "name": "browser_evaluate",
-                    "arguments": {
-                        "function": "() => JSON.stringify({width: window.innerWidth, height: window.innerHeight})",
-                    },
-                },
-            )
-            viewport = self._extract_evaluate_result(viewport_result)
 
             # Create snapshot
             snapshot = SessionSnapshot(
@@ -172,6 +148,10 @@ class SessionStateManager:
         """
         Restore browser state from a snapshot.
 
+        Uses json.dumps() for all user data embedded in JS function strings to
+        prevent JS injection from values containing quotes, backslashes, or
+        newlines (SECR-01).
+
         Args:
             snapshot: SessionSnapshot to restore
 
@@ -189,51 +169,46 @@ class SessionStateManager:
                     },
                 )
 
-            # 2. Restore localStorage
+            # 2. Restore localStorage (injection-safe via json.dumps)
             if snapshot.local_storage:
-                # Parse JSON and restore each key
                 storage_data = json.loads(snapshot.local_storage)
                 for key, value in storage_data.items():
-                    # Escape quotes in value for JavaScript
-                    value_escaped = value.replace("\\", "\\\\").replace("'", "\\'")
                     await self.playwright.send_request(
                         "tools/call",
                         {
                             "name": "browser_evaluate",
                             "arguments": {
-                                "function": f"() => localStorage.setItem('{key}', '{value_escaped}')",
+                                "function": f"() => localStorage.setItem({json.dumps(key)}, {json.dumps(value)})",
                             },
                         },
                     )
 
-            # 3. Restore sessionStorage
+            # 3. Restore sessionStorage (injection-safe via json.dumps)
             if snapshot.session_storage:
-                # Parse JSON and restore each key
                 storage_data = json.loads(snapshot.session_storage)
                 for key, value in storage_data.items():
-                    value_escaped = value.replace("\\", "\\\\").replace("'", "\\'")
                     await self.playwright.send_request(
                         "tools/call",
                         {
                             "name": "browser_evaluate",
                             "arguments": {
-                                "function": f"() => sessionStorage.setItem('{key}', '{value_escaped}')",
+                                "function": f"() => sessionStorage.setItem({json.dumps(key)}, {json.dumps(value)})",
                             },
                         },
                     )
 
-            # 4. Restore cookies (simplified - just set document.cookie)
-            # Note: This is limited - real implementation should use context.addCookies()
+            # 4. Restore cookies (injection-safe via json.dumps)
+            # Note: Limited to document.cookie — real implementation should use context.addCookies()
             if snapshot.cookies:
                 cookies_list = json.loads(snapshot.cookies)
                 for cookie in cookies_list:
-                    cookie_str = f"{cookie['name']}={cookie['value']}"
+                    cookie_literal = json.dumps(f"{cookie['name']}={cookie['value']}")
                     await self.playwright.send_request(
                         "tools/call",
                         {
                             "name": "browser_evaluate",
                             "arguments": {
-                                "function": f"() => document.cookie = '{cookie_str}'",
+                                "function": f"() => document.cookie = {cookie_literal}",
                             },
                         },
                     )
