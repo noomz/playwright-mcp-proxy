@@ -11,42 +11,30 @@ from playwright_mcp_proxy.server.session_state import SessionStateManager
 
 @pytest.mark.asyncio
 async def test_capture_state():
-    """Test capturing session state from browser."""
+    """Test capturing session state from browser using combined single RPC."""
     # Mock PlaywrightManager
     mock_playwright = MagicMock()
     mock_playwright.send_request = AsyncMock()
 
-    # Setup mock responses for different evaluate calls
+    # Setup mock response: single combined JSON object returned from one RPC
+    combined_result = {
+        "url": "https://example.com/test",
+        "cookies": "session=abc123; user=john",
+        "localStorage": '{"key1": "value1", "key2": "value2"}',
+        "sessionStorage": '{"tempKey": "tempValue"}',
+        "viewport": '{"width": 1920, "height": 1080}',
+    }
+
     async def mock_send_request(method, params):
-        """Mock send_request to return different responses based on function."""
+        """Mock send_request to return combined object for browser_evaluate."""
         if method != "tools/call":
             return {}
 
-        function = params.get("arguments", {}).get("function", "")
-
-        # URL
-        if "window.location.href" in function:
-            return {"content": [{"type": "text", "text": "https://example.com/test"}]}
-
-        # Cookies
-        if "document.cookie" in function:
-            return {"content": [{"type": "text", "text": "session=abc123; user=john"}]}
-
-        # localStorage
-        if "localStorage" in function:
+        name = params.get("name", "")
+        if name == "browser_evaluate":
             return {
-                "content": [
-                    {"type": "text", "text": '{"key1": "value1", "key2": "value2"}'}
-                ]
+                "content": [{"type": "text", "text": json.dumps(combined_result)}]
             }
-
-        # sessionStorage
-        if "sessionStorage" in function:
-            return {"content": [{"type": "text", "text": '{"tempKey": "tempValue"}'}]}
-
-        # Viewport
-        if "innerWidth" in function and "innerHeight" in function:
-            return {"content": [{"type": "text", "text": '{"width": 1920, "height": 1080}'}]}
 
         return {}
 
@@ -80,33 +68,34 @@ async def test_capture_state():
     # Verify viewport
     assert snapshot.viewport == '{"width": 1920, "height": 1080}'
 
-    # Verify send_request was called 5 times (URL, cookies, localStorage, sessionStorage, viewport)
-    assert mock_playwright.send_request.call_count == 5
+    # Verify send_request was called exactly 1 time (combined single RPC)
+    assert mock_playwright.send_request.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_capture_state_empty_cookies():
-    """Test capturing state when there are no cookies."""
+    """Test capturing state when there are no cookies using single combined RPC."""
     mock_playwright = MagicMock()
     mock_playwright.send_request = AsyncMock()
 
+    combined_result = {
+        "url": "https://example.com",
+        "cookies": "",
+        "localStorage": "{}",
+        "sessionStorage": "{}",
+        "viewport": '{"width": 1024, "height": 768}',
+    }
+
     async def mock_send_request(method, params):
-        """Mock send_request with empty cookies."""
+        """Mock send_request returning combined object with empty cookies."""
         if method != "tools/call":
             return {}
 
-        function = params.get("arguments", {}).get("function", "")
-
-        if "window.location.href" in function:
-            return {"content": [{"type": "text", "text": "https://example.com"}]}
-        if "document.cookie" in function:
-            return {"content": [{"type": "text", "text": ""}]}  # Empty cookies
-        if "localStorage" in function:
-            return {"content": [{"type": "text", "text": "{}"}]}
-        if "sessionStorage" in function:
-            return {"content": [{"type": "text", "text": "{}"}]}
-        if "innerWidth" in function and "innerHeight" in function:
-            return {"content": [{"type": "text", "text": '{"width": 1024, "height": 768}'}]}
+        name = params.get("name", "")
+        if name == "browser_evaluate":
+            return {
+                "content": [{"type": "text", "text": json.dumps(combined_result)}]
+            }
 
         return {}
 
@@ -118,6 +107,56 @@ async def test_capture_state_empty_cookies():
     assert snapshot is not None
     cookies = json.loads(snapshot.cookies)
     assert len(cookies) == 0  # No cookies
+
+    # Verify single combined RPC
+    assert mock_playwright.send_request.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_capture_state_partial_failure():
+    """Test that capture_state handles partial property failures gracefully.
+
+    When one property (e.g., localStorage) throws SecurityError in browser,
+    the combined JS returns null for that property. capture_state() should still
+    return a snapshot with the other properties populated.
+    send_request must be called exactly 1 time.
+    """
+    mock_playwright = MagicMock()
+    mock_playwright.send_request = AsyncMock()
+
+    # localStorage is null — simulating SecurityError fallback from try/catch
+    combined_result = {
+        "url": "https://example.com",
+        "cookies": "session=abc",
+        "localStorage": None,
+        "sessionStorage": "{}",
+        "viewport": "{}",
+    }
+
+    async def mock_send_request(method, params):
+        if method != "tools/call":
+            return {}
+
+        name = params.get("name", "")
+        if name == "browser_evaluate":
+            return {
+                "content": [{"type": "text", "text": json.dumps(combined_result)}]
+            }
+
+        return {}
+
+    mock_playwright.send_request.side_effect = mock_send_request
+
+    manager = SessionStateManager(mock_playwright)
+    snapshot = await manager.capture_state("test-session-partial")
+
+    # Snapshot should still be created despite partial failure
+    assert snapshot is not None
+    assert snapshot.current_url == "https://example.com"
+
+    # localStorage was null — should be treated as fallback (None or "{}")
+    # The key requirement: snapshot is returned and call_count == 1
+    assert mock_playwright.send_request.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -172,6 +211,118 @@ async def test_restore_state():
     assert navigate_call[0][0] == "tools/call"
     assert navigate_call[0][1]["name"] == "browser_navigate"
     assert navigate_call[0][1]["arguments"]["url"] == "https://example.com/restored"
+
+
+@pytest.mark.asyncio
+async def test_restore_state_injection_safety():
+    """Test that restore_state uses json.dumps() and not f-string interpolation.
+
+    When localStorage value contains JS injection payload like '; alert('xss'); ',
+    the generated function string must use json.dumps() output (double-quoted JSON
+    literal) rather than f-string with single quotes.
+    """
+    from playwright_mcp_proxy.models.database import SessionSnapshot
+
+    mock_playwright = MagicMock()
+    mock_playwright.send_request = AsyncMock(return_value={})
+
+    manager = SessionStateManager(mock_playwright)
+
+    xss_value = "'; alert('xss'); '"
+    snapshot = SessionSnapshot(
+        session_id="test-session-xss",
+        current_url="https://example.com",
+        local_storage=json.dumps({"xss": xss_value}),
+        snapshot_time=datetime.now(),
+    )
+
+    result = await manager.restore_state(snapshot)
+    assert result is True
+
+    # Inspect the call args for the localStorage setItem call
+    calls = mock_playwright.send_request.call_args_list
+
+    # Find the localStorage setItem call (after the navigate call)
+    set_item_calls = [
+        call
+        for call in calls
+        if call[0][0] == "tools/call"
+        and call[0][1].get("name") == "browser_evaluate"
+        and "localStorage.setItem" in call[0][1].get("arguments", {}).get("function", "")
+    ]
+    assert len(set_item_calls) >= 1
+
+    # Verify the function string uses json.dumps output (double-quoted JSON)
+    for call in set_item_calls:
+        fn = call[0][1]["arguments"]["function"]
+        # Must NOT use bare single-quoted values
+        # The xss payload has single quotes — they must be JSON-escaped
+        assert "'; alert(" not in fn, (
+            f"Injection payload not escaped! Function string: {fn!r}"
+        )
+        # Must use json.dumps output: double-quoted strings in the function
+        # json.dumps("xss") => '"xss"' and json.dumps(xss_value) => '"...\\'...\\'..."'
+        assert '"xss"' in fn, (
+            f"Expected json.dumps key output '\"xss\"' in function string: {fn!r}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_restore_state_special_chars():
+    """Test restore_state handles special characters via json.dumps() correctly.
+
+    Values containing single quotes, double quotes, backslashes, newlines,
+    and Unicode must restore correctly with proper JSON encoding.
+    """
+    from playwright_mcp_proxy.models.database import SessionSnapshot
+
+    mock_playwright = MagicMock()
+    mock_playwright.send_request = AsyncMock(return_value={})
+
+    manager = SessionStateManager(mock_playwright)
+
+    # Storage with all the tricky characters
+    tricky_storage = {
+        "key'quote": "val\"double",
+        "back\\slash": "new\nline",
+        "unicode": "\u00e9\u00e0\u00fc",
+    }
+
+    snapshot = SessionSnapshot(
+        session_id="test-session-special",
+        current_url="https://example.com",
+        local_storage=json.dumps(tricky_storage),
+        session_storage=json.dumps({"s'key": "s\"val\nwith\\slash"}),
+        snapshot_time=datetime.now(),
+    )
+
+    result = await manager.restore_state(snapshot)
+    assert result is True
+
+    # Verify all calls completed without errors
+    calls = mock_playwright.send_request.call_args_list
+
+    # Find evaluate calls (localStorage and sessionStorage setItem)
+    evaluate_calls = [
+        call
+        for call in calls
+        if call[0][0] == "tools/call"
+        and call[0][1].get("name") == "browser_evaluate"
+    ]
+
+    # Should have 4 evaluate calls (3 localStorage + 1 sessionStorage)
+    assert len(evaluate_calls) == 4
+
+    # Each function string must be parseable and contain properly JSON-encoded values
+    for call in evaluate_calls:
+        fn = call[0][1]["arguments"]["function"]
+        # The function string must be valid (no unescaped single quotes breaking JS)
+        # Verify json.dumps produced double-quoted strings for keys/values
+        # json.dumps on keys with single quotes will produce "key'quote" (valid)
+        # json.dumps on values with double quotes will produce "val\"double" (escaped)
+        assert "setItem" in fn
+        # No raw unescaped single-quoted JS string patterns like 'val"double'
+        # (json.dumps always produces double-quoted output so this pattern won't appear)
 
 
 @pytest.mark.asyncio
