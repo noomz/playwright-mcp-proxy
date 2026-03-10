@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         description="Command to run Playwright MCP",
     )
     playwright_args: list[str] = Field(
-        default=["@playwright/mcp@latest"],
+        default=["@playwright/mcp@0.0.68"],
         description="Arguments for Playwright MCP",
     )
     playwright_browser: Optional[str] = Field(
@@ -77,12 +77,11 @@ class Settings(BaseSettings):
         description="Keep last N snapshots per session",
     )
 
-    class Config:
-        """Pydantic config."""
-
-        env_prefix = "PLAYWRIGHT_PROXY_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_prefix="PLAYWRIGHT_PROXY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
 
 # Global settings instance
