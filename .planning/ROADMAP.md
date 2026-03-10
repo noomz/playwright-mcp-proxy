@@ -41,10 +41,10 @@ Plans:
   1. Request params stored in the database are valid JSON (deserializable via `json.loads()`)
   2. `console_error_count` in proxy response metadata returns the actual count of error-level logs, not hardcoded 0
   3. Console log level filtering returns correct results even when only raw blob data exists (no normalized logs)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Fix param serialization, console error count, and log level filtering
 
 ### Phase 3: Transaction Batching
 **Goal**: Related database writes are grouped into single transactions, reducing per-request commit overhead without losing the pre-RPC audit trail
@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dependency Hygiene | 0/1 | Not started | - |
-| 2. Bug Fixes | 0/0 | Not started | - |
+| 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
+| 2. Bug Fixes | 0/1 | Not started | - |
 | 3. Transaction Batching | 0/0 | Not started | - |
 | 4. Evaluate Consolidation & Security | 0/0 | Not started | - |
