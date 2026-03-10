@@ -9,9 +9,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Dependencies
 
-- [ ] **DEPS-01**: `pydantic-settings` added as explicit dependency in pyproject.toml
-- [ ] **DEPS-02**: All dependency version floors bumped to match tested/locked versions
-- [ ] **DEPS-03**: `@playwright/mcp` pinned to specific version instead of `@latest`
+- [x] **DEPS-01**: `pydantic-settings` added as explicit dependency in pyproject.toml
+- [x] **DEPS-02**: All dependency version floors bumped to match tested/locked versions
+- [x] **DEPS-03**: `@playwright/mcp` pinned to specific version instead of `@latest`
 
 ### Bug Fixes
 
@@ -56,9 +56,9 @@ Deferred to future milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPS-01 | Phase 1 | Pending |
-| DEPS-02 | Phase 1 | Pending |
-| DEPS-03 | Phase 1 | Pending |
+| DEPS-01 | Phase 1 | Complete |
+| DEPS-02 | Phase 1 | Complete |
+| DEPS-03 | Phase 1 | Complete |
 | BUGF-01 | Phase 2 | Pending |
 | BUGF-02 | Phase 2 | Pending |
 | BUGF-03 | Phase 2 | Pending |

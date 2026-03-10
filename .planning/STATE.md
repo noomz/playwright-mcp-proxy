@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-10T04:20:46.380Z"
+last_activity: 2026-03-09 — Roadmap created
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 100
+---
+
 # Project State
 
 ## Project Reference
@@ -9,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 ## Current Position
 
-Phase: 1 of 4 (Dependency Hygiene)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-03-09 — Roadmap created
+Phase: 1 of 4 (Dependency Hygiene) - Complete
+Plan: 1 of 1 in current phase
+Status: Phase 1 complete
+Last activity: 2026-03-10 — Completed 01-01-PLAN.md
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -34,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -44,6 +61,9 @@ Recent decisions affecting current work:
 
 - [Roadmap]: 4 phases derived from 9 requirements (coarse granularity). Dependencies first, bugs second, performance third, security+perf fourth.
 - [Roadmap]: SECR-01 grouped with PERF-02 (both touch session_state.py, both use JSON embedding pattern)
+- [Phase 01]: Pinned @playwright/mcp to 0.0.68 for reproducible builds
+- [Phase 01]: Migrated from deprecated inner Config class to SettingsConfigDict (pydantic-settings 2.x)
+- [Phase 01]: Bumped pytest-asyncio floor to >=1.0.0 (major version; asyncio_mode=auto compatible)
 
 ### Pending Todos
 
@@ -56,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09
-Stopped at: Roadmap created, ready to plan Phase 1
+Last session: 2026-03-10T04:20:46.377Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
