@@ -28,10 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. All dependency version floors in pyproject.toml match or exceed the versions currently resolved in uv.lock
   3. `@playwright/mcp` is pinned to a specific version (not `@latest`) in the subprocess spawn command
   4. Existing test suite passes with no regressions after dependency updates
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md — Update dependency declarations, pin @playwright/mcp@0.0.68, verify test suite
 
 ### Phase 2: Bug Fixes
 **Goal**: All known data-integrity bugs are fixed so stored data is valid JSON, metadata reflects reality, and log filtering works correctly
@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dependency Hygiene | 0/0 | Not started | - |
+| 1. Dependency Hygiene | 0/1 | Not started | - |
 | 2. Bug Fixes | 0/0 | Not started | - |
 | 3. Transaction Batching | 0/0 | Not started | - |
 | 4. Evaluate Consolidation & Security | 0/0 | Not started | - |
