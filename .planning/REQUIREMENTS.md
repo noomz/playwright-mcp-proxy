@@ -46,11 +46,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Comparison Tests
 
-- [ ] **CMP-01**: Proxy and direct Playwright return same landmark content for simple page navigation (example.com)
-- [ ] **CMP-02**: Proxy diff suppresses unchanged content on second read while direct always returns full content
-- [ ] **CMP-03**: Both paths correctly reflect page content across multi-page navigation (example.com then httpbin.org)
-- [ ] **CMP-04**: Proxy search_for parameter filters snapshot content to fewer lines than full response
-- [ ] **CMP-05**: Both paths handle invalid URL navigation gracefully without crashes
+- [x] **CMP-01**: Proxy and direct Playwright return same landmark content for simple page navigation (example.com)
+- [x] **CMP-02**: Proxy diff suppresses unchanged content on second read while direct always returns full content
+- [x] **CMP-03**: Both paths correctly reflect page content across multi-page navigation (example.com then httpbin.org)
+- [x] **CMP-04**: Proxy search_for parameter filters snapshot content to fewer lines than full response
+- [x] **CMP-05**: Both paths handle invalid URL navigation gracefully without crashes
 
 ## v2 Requirements
 
