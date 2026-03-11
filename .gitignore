@@ -21,7 +21,9 @@ wheels/
 # IDE
 .vscode/
 .idea/
-.claude/
+# Ignore .claude local config, but track skills (they ship with the repo)
+.claude/*
+!.claude/skills
 *.swp
 *.swo
 
