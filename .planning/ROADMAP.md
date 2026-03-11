@@ -86,10 +86,26 @@ Plans:
 Plans:
 - [ ] 05-01-PLAN.md — Scaffold CLI package with Click, implement all 4 commands, add tests
 
+### Phase 6: Create Claude Code skill for playwright-proxy tools
+**Goal:** Rewrite the Claude Code skill from a test-generation-only SKILL.md into a complete reference covering all 9 proxy tools, response policy, diff behavior, ctl commands, and session lifecycle
+**Depends on:** Phase 5
+**Requirements**: SKIL-01, SKIL-02, SKIL-03, SKIL-04, SKIL-05, SKIL-06
+**Success Criteria** (what must be TRUE):
+  1. Skill file exists at `~/.claude/skills/playwright-proxy/SKILL.md` with valid YAML frontmatter
+  2. All 9 MCP tools documented with parameters and return values
+  3. Response policy (metadata + ref_id -> get_content) explained as standard workflow
+  4. Diff behavior (empty = unchanged, reset_cursor for full) documented
+  5. playwright-proxy-ctl commands documented
+  6. Skill passes skill-reviewer quality criteria
+**Plans:** 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Rewrite SKILL.md with complete tool surface, response policy, diff behavior, ctl commands
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -98,3 +114,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
 | 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
 | 5. CLI Management Tool | 1/1 | Complete   | 2026-03-11 |
+| 6. Claude Code Skill | 0/1 | Planned | - |

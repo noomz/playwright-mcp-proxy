@@ -35,6 +35,15 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **CLI-03**: `playwright-proxy-ctl sessions clear` deletes sessions by state from DB directly with confirmation prompt
 - [x] **CLI-04**: `playwright-proxy-ctl db vacuum` compacts SQLite database (requires server stopped)
 
+### Claude Code Skill
+
+- [ ] **SKIL-01**: Skill file exists at `~/.claude/skills/playwright-proxy/SKILL.md` with valid YAML frontmatter (name, description, allowed-tools)
+- [ ] **SKIL-02**: All 9 MCP tools documented with parameters and return values
+- [ ] **SKIL-03**: Response policy (metadata + ref_id, then get_content) explained as standard workflow
+- [ ] **SKIL-04**: Diff behavior documented (empty = unchanged, reset_cursor for full content)
+- [ ] **SKIL-05**: playwright-proxy-ctl commands (health, sessions list/clear, db vacuum) documented
+- [ ] **SKIL-06**: Skill follows progressive disclosure and passes skill-reviewer quality criteria
+
 ## v2 Requirements
 
 Deferred to future milestone.
@@ -76,12 +85,18 @@ Deferred to future milestone.
 | CLI-02 | Phase 5 | Complete |
 | CLI-03 | Phase 5 | Complete |
 | CLI-04 | Phase 5 | Complete |
+| SKIL-01 | Phase 6 | Planned |
+| SKIL-02 | Phase 6 | Planned |
+| SKIL-03 | Phase 6 | Planned |
+| SKIL-04 | Phase 6 | Planned |
+| SKIL-05 | Phase 6 | Planned |
+| SKIL-06 | Phase 6 | Planned |
 
 **Coverage:**
-- v1 requirements: 13 total
-- Mapped to phases: 13
+- v1 requirements: 19 total
+- Mapped to phases: 19
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-11 after Phase 5 planning*
+*Last updated: 2026-03-11 after Phase 6 planning*
