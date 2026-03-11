@@ -23,6 +23,7 @@ class PlaywrightManager:
         self.is_healthy = False
         self.restart_attempts: deque[float] = deque(maxlen=settings.max_restart_attempts)
         self._health_check_task: Optional[asyncio.Task] = None
+        self._stderr_task: Optional[asyncio.Task] = None
         self._message_id = 0
         self._lock = asyncio.Lock()
 
@@ -61,7 +62,7 @@ class PlaywrightManager:
             self._health_check_task = asyncio.create_task(self._health_check_loop())
 
             # Start stderr monitor
-            asyncio.create_task(self._monitor_stderr())
+            self._stderr_task = asyncio.create_task(self._monitor_stderr())
 
         except Exception as e:
             logger.error(f"Failed to start Playwright subprocess: {e}")
@@ -78,6 +79,16 @@ class PlaywrightManager:
                 await self._health_check_task
             except asyncio.CancelledError:
                 pass
+            self._health_check_task = None
+
+        # Cancel stderr monitor
+        if self._stderr_task:
+            self._stderr_task.cancel()
+            try:
+                await self._stderr_task
+            except asyncio.CancelledError:
+                pass
+            self._stderr_task = None
 
         # Terminate process
         if self.process:
@@ -215,8 +226,8 @@ class PlaywrightManager:
                     )
                     self.is_healthy = False
                     await self._attempt_restart()
-                    consecutive_failures = 0
-                    continue
+                    # start() creates a new health check loop — exit this one
+                    break
 
                 # Try a simple ping (tools/list is a safe read-only operation)
                 try:
@@ -234,7 +245,8 @@ class PlaywrightManager:
                         logger.error("Health check failed 3 times, marking unhealthy")
                         self.is_healthy = False
                         await self._attempt_restart()
-                        consecutive_failures = 0
+                        # start() creates a new health check loop — exit this one
+                        break
 
             except asyncio.CancelledError:
                 break
@@ -242,7 +254,13 @@ class PlaywrightManager:
                 logger.error(f"Error in health check loop: {e}")
 
     async def _attempt_restart(self) -> None:
-        """Attempt to restart the subprocess with exponential backoff."""
+        """
+        Attempt to restart the subprocess with exponential backoff.
+
+        Called from _health_check_loop — must NOT cancel the calling task.
+        The caller is responsible for exiting (break) after this returns,
+        since start() creates a fresh health check loop.
+        """
         now = time.time()
 
         # Clean up old restart attempts outside the window
@@ -268,10 +286,15 @@ class PlaywrightManager:
         logger.info(f"Restarting subprocess in {backoff}s...")
         await asyncio.sleep(backoff)
 
-        # Stop existing process
+        # Teardown the process and background tasks WITHOUT cancelling the
+        # current health-check task (we're running inside it).
+        # Clear the reference so stop() skips the self-cancel.
+        self._health_check_task = None
+
+        # Stop existing process (will skip health check cancel since we cleared it)
         await self.stop()
 
-        # Start new process
+        # Start new process (creates fresh health check + stderr tasks)
         try:
             await self.start()
             logger.info("Subprocess restarted successfully")
