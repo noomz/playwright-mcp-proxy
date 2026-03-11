@@ -81,7 +81,7 @@ Plans:
   2. `playwright-proxy-ctl sessions list` shows sessions from running server, with optional `--state` filter
   3. `playwright-proxy-ctl sessions clear` deletes sessions by state from DB with confirmation prompt
   4. `playwright-proxy-ctl db vacuum` compacts SQLite database, refusing to run while server is active
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Scaffold CLI package with Click, implement all 4 commands, add tests
@@ -97,4 +97,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
 | 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
-| 5. CLI Management Tool | 0/1 | Planned | - |
+| 5. CLI Management Tool | 1/1 | Complete   | 2026-03-11 |

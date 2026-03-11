@@ -30,10 +30,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### CLI Management Tool
 
-- [ ] **CLI-01**: `playwright-proxy-ctl health` checks server health via HTTP and prints status or connection error
-- [ ] **CLI-02**: `playwright-proxy-ctl sessions list` lists sessions from server HTTP API with optional `--state` filter
-- [ ] **CLI-03**: `playwright-proxy-ctl sessions clear` deletes sessions by state from DB directly with confirmation prompt
-- [ ] **CLI-04**: `playwright-proxy-ctl db vacuum` compacts SQLite database (requires server stopped)
+- [x] **CLI-01**: `playwright-proxy-ctl health` checks server health via HTTP and prints status or connection error
+- [x] **CLI-02**: `playwright-proxy-ctl sessions list` lists sessions from server HTTP API with optional `--state` filter
+- [x] **CLI-03**: `playwright-proxy-ctl sessions clear` deletes sessions by state from DB directly with confirmation prompt
+- [x] **CLI-04**: `playwright-proxy-ctl db vacuum` compacts SQLite database (requires server stopped)
 
 ## v2 Requirements
 
@@ -72,10 +72,10 @@ Deferred to future milestone.
 | PERF-01 | Phase 3 | Complete |
 | PERF-02 | Phase 4 | Complete |
 | SECR-01 | Phase 4 | Complete |
-| CLI-01 | Phase 5 | Pending |
-| CLI-02 | Phase 5 | Pending |
-| CLI-03 | Phase 5 | Pending |
-| CLI-04 | Phase 5 | Pending |
+| CLI-01 | Phase 5 | Complete |
+| CLI-02 | Phase 5 | Complete |
+| CLI-03 | Phase 5 | Complete |
+| CLI-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 13 total
