@@ -72,10 +72,24 @@ Plans:
 Plans:
 - [ ] 04-01-PLAN.md — Consolidate capture to 1 RPC with per-property try/catch, fix restore JS injection via json.dumps embedding
 
+### Phase 5: CLI management tool (playwright-proxy-ctl)
+**Goal:** Add `playwright-proxy-ctl` CLI with health check, session listing/cleanup, and database vacuum commands
+**Depends on:** Phase 4
+**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04
+**Success Criteria** (what must be TRUE):
+  1. `playwright-proxy-ctl health` reports server status or prints connection error with exit code 1
+  2. `playwright-proxy-ctl sessions list` shows sessions from running server, with optional `--state` filter
+  3. `playwright-proxy-ctl sessions clear` deletes sessions by state from DB with confirmation prompt
+  4. `playwright-proxy-ctl db vacuum` compacts SQLite database, refusing to run while server is active
+**Plans:** 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Scaffold CLI package with Click, implement all 4 commands, add tests
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -83,13 +97,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
 | 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
-
-### Phase 5: CLI management tool (playwright-proxy-ctl)
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 4
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 5 to break down)
+| 5. CLI Management Tool | 0/1 | Planned | - |
