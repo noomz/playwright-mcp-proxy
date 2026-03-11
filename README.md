@@ -74,23 +74,7 @@ To uninstall:
 uv tool uninstall playwright-mcp-proxy
 ```
 
-#### Option 2: pipx Install
-
-If you prefer pipx:
-
-```bash
-# Install with pipx
-pipx install .
-
-# Or from Git
-pipx install git+https://github.com/yourusername/playwright-mcp-proxy.git
-
-# Commands available globally
-playwright-proxy-server
-playwright-proxy-client
-```
-
-#### Option 3: System-wide UV pip install
+#### Option 2: System-wide UV pip install
 
 ```bash
 # Install to UV's global Python environment
@@ -118,7 +102,7 @@ The server will:
 
 Add to your MCP client configuration (e.g., Claude Desktop, VS Code):
 
-**If installed globally (uv tool install or pipx):**
+**If installed globally (uv tool install):**
 
 ```json
 {
