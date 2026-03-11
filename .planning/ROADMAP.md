@@ -83,3 +83,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
 | 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
 | 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
+
+### Phase 5: CLI management tool (playwright-proxy-ctl)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 4
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 5 to break down)

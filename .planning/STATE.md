@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 
 None yet.
 
+### Roadmap Evolution
+
+- Phase 5 added: CLI management tool (playwright-proxy-ctl)
+
 ### Blockers/Concerns
 
 - [Research]: Playwright MCP evaluate arg support unverified -- affects Phase 4 approach (JSON embedding fallback works either way)
