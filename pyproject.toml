@@ -14,6 +14,7 @@ dependencies = [
     "pydantic-settings>=2.11.0",
     "python-dotenv>=1.0.0",
     "psutil>=6.1.0",
+    "click>=8.1.0",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +28,7 @@ dev = [
 [project.scripts]
 playwright-proxy-server = "playwright_mcp_proxy.server:main"
 playwright-proxy-client = "playwright_mcp_proxy.client:main"
+playwright-proxy-ctl = "playwright_mcp_proxy.ctl:main"
 
 [build-system]
 requires = ["hatchling"]
