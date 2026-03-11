@@ -44,6 +44,14 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **SKIL-05**: playwright-proxy-ctl commands (health, sessions list/clear, db vacuum) documented
 - [ ] **SKIL-06**: Skill follows progressive disclosure and passes skill-reviewer quality criteria
 
+### Comparison Tests
+
+- [ ] **CMP-01**: Proxy and direct Playwright return same landmark content for simple page navigation (example.com)
+- [ ] **CMP-02**: Proxy diff suppresses unchanged content on second read while direct always returns full content
+- [ ] **CMP-03**: Both paths correctly reflect page content across multi-page navigation (example.com then httpbin.org)
+- [ ] **CMP-04**: Proxy search_for parameter filters snapshot content to fewer lines than full response
+- [ ] **CMP-05**: Both paths handle invalid URL navigation gracefully without crashes
+
 ## v2 Requirements
 
 Deferred to future milestone.
@@ -91,12 +99,17 @@ Deferred to future milestone.
 | SKIL-04 | Phase 6 | Planned |
 | SKIL-05 | Phase 6 | Planned |
 | SKIL-06 | Phase 6 | Planned |
+| CMP-01 | Phase 7 | Planned |
+| CMP-02 | Phase 7 | Planned |
+| CMP-03 | Phase 7 | Planned |
+| CMP-04 | Phase 7 | Planned |
+| CMP-05 | Phase 7 | Planned |
 
 **Coverage:**
-- v1 requirements: 19 total
-- Mapped to phases: 19
+- v1 requirements: 24 total
+- Mapped to phases: 24
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-11 after Phase 6 planning*
+*Last updated: 2026-03-11 after Phase 7 planning*

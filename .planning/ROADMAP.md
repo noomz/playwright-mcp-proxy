@@ -102,10 +102,25 @@ Plans:
 Plans:
 - [ ] 06-01-PLAN.md — Rewrite SKILL.md with complete tool surface, response policy, diff behavior, ctl commands
 
+### Phase 7: Create comprehensive tests to compare proxy tools against direct Playwright manipulation
+**Goal:** Verify proxy faithfully preserves Playwright MCP behavior through 5 comparison scenarios that run the same operations via both the proxy HTTP API and direct Playwright MCP subprocess, demonstrating behavioral equivalence and proxy value-add features (diff, search, persistence)
+**Depends on:** Phase 6
+**Requirements**: CMP-01, CMP-02, CMP-03, CMP-04, CMP-05
+**Success Criteria** (what must be TRUE):
+  1. Proxy and direct Playwright return same landmark content for simple page navigation (example.com)
+  2. Proxy diff suppresses unchanged content on second read while direct always returns full content
+  3. Both paths correctly reflect page content across multi-page navigation sequences
+  4. Proxy search_for parameter filters snapshot content to fewer lines than full response
+  5. Both paths handle invalid URL navigation gracefully without test crashes
+**Plans:** 1 plan
+
+Plans:
+- [ ] 07-01-PLAN.md — Create test_comparison.py with DirectPlaywrightClient helper and 5 comparison scenarios
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -115,3 +130,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
 | 5. CLI Management Tool | 1/1 | Complete   | 2026-03-11 |
 | 6. Claude Code Skill | 0/1 | Planned | - |
+| 7. Comparison Tests | 0/1 | Planned | - |
