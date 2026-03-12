@@ -312,6 +312,135 @@ Responses return metadata + ref_id instead of full content.
 - **diff_cursors** - For Phase 2 diff support
 - **session_snapshots** - Phase 7 state snapshots (URL, cookies, storage, viewport)
 
+## Performance Comparison: Proxy vs Direct Playwright MCP
+
+Measured with `uv run pytest tests/test_comparison.py -v -s -m integration` — 7 scenarios comparing the proxy against direct Playwright MCP subprocess communication.
+
+### Simple Navigation (example.com)
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate | proxy | 67 | 301 | - |
+| snapshot (metadata) | proxy | 6 | 300 | 75 |
+| get_content | proxy | 2 | 440 | 102 |
+| navigate | direct | 1,711 | - | - |
+| snapshot (full) | direct | 3 | 787 | 181 |
+
+> Proxy metadata response: 300B vs Direct full snapshot: 787B
+
+### Diff Suppression (repeated reads)
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| 1st read (full) | proxy | 2 | 440 | 102 |
+| 2nd read (diff=empty) | proxy | 2 | 14 | 1 |
+| 3rd read (reset=full) | proxy | 2 | 440 | 102 |
+| 1st snapshot | direct | 3 | 469 | 102 |
+| 2nd snapshot | direct | 5 | 787 | 181 |
+| 3rd snapshot | direct | 3 | 502 | 110 |
+
+> **3-read token savings: 188 tokens saved (48%)** — proxy 205 vs direct 393
+
+### Multi-page Navigation
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate (example.com) | proxy | 303 | - | - |
+| snapshot (example.com) | proxy | 1,013 | 300 | 75 |
+| get_content (example.com) | proxy | 4 | 440 | 102 |
+| navigate (www.iana.org) | proxy | 1,307 | - | - |
+| snapshot (www.iana.org) | proxy | 1,021 | 300 | 75 |
+| get_content (www.iana.org) | proxy | 3 | 7,274 | 1,749 |
+| get_content (page 1 replay) | proxy | 3 | 411 | 102 |
+| navigate (example.com) | direct | 1,508 | - | - |
+| snapshot (example.com) | direct | 3 | 469 | 102 |
+| navigate (www.iana.org) | direct | 6,434 | - | - |
+| snapshot (www.iana.org) | direct | 7 | 7,024 | 1,677 |
+
+> Proxy persistence: page 1 content retrieved after navigating to page 2 (3ms)
+> Direct has NO persistence — previous page content is gone after navigation
+
+### Content Search Filtering
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| full content | proxy | 2 | 440 | 102 |
+| filtered (search_for) | proxy | 5 | 97 | 19 |
+| snapshot (full, no filter) | direct | 4 | 469 | 102 |
+
+> **search_for reduction: 81% smaller payload, ~83 tokens saved**
+> Direct MCP has no search filtering — always returns full accessibility tree
+
+### Error Handling
+
+| Operation | Path | Latency (ms) | Payload (bytes) |
+|-----------|------|-------------:|----------------:|
+| invalid URL navigate | proxy | 623 | 283 |
+| invalid URL navigate | direct | 1,106 | - |
+
+> Both paths handle errors gracefully without crashing
+
+### Complex Page: Google Search
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate (google.com) | proxy | 1,449 | - | - |
+| type search query | proxy | 3,064 | - | - |
+| press Enter | proxy | 1,179 | - | - |
+| snapshot results (metadata) | proxy | 2,043 | 300 | 75 |
+| get_content (1st read) | proxy | 3 | 78,262 | 17,676 |
+| get_content (2nd read, diff) | proxy | 2 | 14 | 1 |
+| get_content (search_for) | proxy | 3 | 13,711 | 3,285 |
+| navigate (google.com) | direct | 1,877 | - | - |
+| type search query | direct | 2,547 | - | - |
+| press Enter | direct | 2,198 | - | - |
+| snapshot results (full) | direct | 15 | 3,181 | 772 |
+| snapshot (2nd, full again) | direct | 6 | 3,181 | 772 |
+
+> **search_for 'playwright' reduction: 81%** — 3,285 tokens vs 17,676 full
+
+### Complex Page: YouTube Search
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate (youtube.com) | proxy | 1,618 | - | - |
+| snapshot homepage | proxy | 79 | 2,502 | 625 |
+| type search query | proxy | 32 | - | - |
+| press Enter | proxy | 1,047 | - | - |
+| snapshot results (metadata) | proxy | 22 | 300 | 75 |
+| get_content (1st read) | proxy | 3 | 2,929 | 703 |
+| get_content (2nd read, diff) | proxy | 2 | 14 | 1 |
+| get_content (search_for) | proxy | 3 | 175 | 40 |
+| navigate (youtube.com) | direct | 2,201 | - | - |
+| snapshot homepage | direct | 14 | 1,956 | 460 |
+| type search query | direct | 26 | - | - |
+| press Enter | direct | 1,019 | - | - |
+| snapshot results (full) | direct | 15 | 1,956 | 460 |
+| snapshot (2nd, full again) | direct | 13 | 1,956 | 460 |
+
+> **2-read diff savings: 216 tokens (23%)** — proxy 704 vs direct 920
+> Full page: 703 tokens | Filtered 'playwright': 40 tokens | Diff suppressed: 1 token
+
+### Key Proxy Advantages
+
+| Feature | Description |
+|---------|-------------|
+| Metadata-only responses | Initial tool call returns ref_id, not full content — small, fixed-size payload |
+| Diff suppression | Repeated reads return empty when content unchanged — massive token savings |
+| search_for filtering | Retrieve only matching lines — reduces payload for targeted lookups |
+| Persistence (SQLite) | All snapshots stored — retrieve any historical page by ref_id |
+| Session management | Named sessions with lifecycle tracking and error audit trail |
+
+### Running Comparison Tests
+
+```bash
+# Start the proxy server first
+uv run playwright-proxy-server
+
+# Run the comparison suite (requires internet access)
+uv run pytest tests/test_comparison.py -v -s -m integration
+```
+
 ## Development
 
 ### Running Tests
