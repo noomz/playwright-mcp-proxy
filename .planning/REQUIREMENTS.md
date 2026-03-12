@@ -52,6 +52,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **CMP-04**: Proxy search_for parameter filters snapshot content to fewer lines than full response
 - [x] **CMP-05**: Both paths handle invalid URL navigation gracefully without crashes
 
+### Chrome Comparison
+
+- [ ] **CHRM-01**: Chrome measurement JSON file loads and validates with correct schema (generated_at, scenarios with measurements)
+- [ ] **CHRM-02**: Chrome comparison test prints formatted performance table showing chrome path metrics (latency, payload bytes, estimated tokens)
+- [ ] **CHRM-03**: Chrome measurements recorded for 3 scenarios (example.com, Google Search, YouTube Search) with navigate and read_page metrics
+
 ## v2 Requirements
 
 Deferred to future milestone.
@@ -99,17 +105,20 @@ Deferred to future milestone.
 | SKIL-04 | Phase 6 | Planned |
 | SKIL-05 | Phase 6 | Planned |
 | SKIL-06 | Phase 6 | Planned |
-| CMP-01 | Phase 7 | Planned |
-| CMP-02 | Phase 7 | Planned |
-| CMP-03 | Phase 7 | Planned |
-| CMP-04 | Phase 7 | Planned |
-| CMP-05 | Phase 7 | Planned |
+| CMP-01 | Phase 7 | Complete |
+| CMP-02 | Phase 7 | Complete |
+| CMP-03 | Phase 7 | Complete |
+| CMP-04 | Phase 7 | Complete |
+| CMP-05 | Phase 7 | Complete |
+| CHRM-01 | Phase 8 | Planned |
+| CHRM-02 | Phase 8 | Planned |
+| CHRM-03 | Phase 8 | Planned |
 
 **Coverage:**
-- v1 requirements: 24 total
-- Mapped to phases: 24
+- v1 requirements: 27 total
+- Mapped to phases: 27
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-11 after Phase 7 planning*
+*Last updated: 2026-03-12 after Phase 8 planning*

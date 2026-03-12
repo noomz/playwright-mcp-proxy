@@ -117,10 +117,23 @@ Plans:
 Plans:
 - [ ] 07-01-PLAN.md — Create test_comparison.py with DirectPlaywrightClient helper and 5 comparison scenarios
 
+### Phase 8: Add new perf comparison results between Claude in Chrome
+**Goal:** Extend Phase 7 comparison framework with a third path (claude-in-chrome) that records browser automation metrics from Chrome extension tools and produces a 3-way performance comparison table (proxy vs direct vs chrome)
+**Depends on:** Phase 7
+**Requirements**: CHRM-01, CHRM-02, CHRM-03
+**Success Criteria** (what must be TRUE):
+  1. Chrome measurement JSON loads without error and contains valid scenario data for 3 scenarios
+  2. Merged comparison table prints chrome path metrics (latency, payload, tokens) using the same format as Phase 7
+  3. Chrome path measurements include navigate latency and read_page payload/token estimates for example.com, Google Search, and YouTube Search
+**Plans:** 1 plan
+
+Plans:
+- [ ] 08-01-PLAN.md — Create chrome comparison test infrastructure and record chrome measurements via claude-in-chrome tools
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -131,3 +144,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. CLI Management Tool | 1/1 | Complete   | 2026-03-11 |
 | 6. Claude Code Skill | 0/1 | Planned | - |
 | 7. Comparison Tests | 1/1 | Complete   | 2026-03-11 |
+| 8. Chrome Comparison | 0/1 | Planned | - |
