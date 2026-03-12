@@ -66,7 +66,14 @@ class SessionStateManager:
             )
 
             raw_text = self._extract_evaluate_result(result)
-            state = json.loads(raw_text) if raw_text else {}
+            if not raw_text:
+                logger.debug(f"Empty response for session {session_id} (tab likely closed)")
+                return None
+            try:
+                state = json.loads(raw_text)
+            except json.JSONDecodeError:
+                logger.debug(f"Non-JSON response for session {session_id} (tab likely closed): {raw_text[:100]}")
+                return None
 
             # Extract each property with fallbacks for null (partial failure)
             current_url = state.get("url") or ""

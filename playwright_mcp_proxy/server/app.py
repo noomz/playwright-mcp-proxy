@@ -147,10 +147,15 @@ async def periodic_snapshot_task():
     2. Captures their current browser state
     3. Saves snapshots to database
     4. Cleans up old snapshots (keeps last N)
+    5. Marks sessions as closed after 3 consecutive capture failures (tab closed)
     """
     logger.info(
         f"Starting periodic snapshot task (interval: {settings.session_snapshot_interval}s)"
     )
+
+    # Track consecutive capture failures per session
+    capture_failures: dict[str, int] = {}
+    max_failures = 3
 
     while True:
         try:
@@ -173,6 +178,9 @@ async def periodic_snapshot_task():
                     )
 
                     if snapshot:
+                        # Reset failure counter on success
+                        capture_failures.pop(session.session_id, None)
+
                         # Save snapshot to database
                         await database.save_session_snapshot(snapshot)
 
@@ -188,9 +196,24 @@ async def periodic_snapshot_task():
 
                         logger.debug(f"Snapshot saved for session {session.session_id}")
                     else:
-                        logger.warning(
-                            f"Failed to capture state for session {session.session_id}"
-                        )
+                        # Track consecutive failures — tab likely closed
+                        failures = capture_failures.get(session.session_id, 0) + 1
+                        capture_failures[session.session_id] = failures
+
+                        if failures >= max_failures:
+                            logger.info(
+                                f"Marking session {session.session_id} as closed "
+                                f"after {failures} consecutive capture failures (tab closed)"
+                            )
+                            await database.update_session_state(
+                                session.session_id, "closed"
+                            )
+                            capture_failures.pop(session.session_id, None)
+                        else:
+                            logger.debug(
+                                f"Capture failed for session {session.session_id} "
+                                f"({failures}/{max_failures} before auto-close)"
+                            )
 
                 except (KeyError, IndexError) as e:
                     logger.error(
@@ -545,6 +568,17 @@ def create_app() -> FastAPI:
                         for entry in entries
                     ]
                     await database.create_console_logs_batch_no_commit(logs)
+
+            # Bug fix: update current_url after successful browser_navigate
+            if request.tool == "browser_navigate" and "url" in request.params:
+                await database.update_session_url_no_commit(
+                    request.session_id, request.params["url"]
+                )
+
+            # Bug fix: mark session closed and suppress restart after browser_close
+            if request.tool == "browser_close":
+                await database.update_session_state_no_commit(request.session_id, "closed")
+                playwright_manager._intentional_close = True
 
             # Update session activity (moved from pre-RPC to post-RPC batch)
             await database.update_session_activity_no_commit(request.session_id)
