@@ -421,6 +421,65 @@ Measured with `uv run pytest tests/test_comparison.py -v -s -m integration` — 
 > **2-read diff savings: 216 tokens (23%)** — proxy 704 vs direct 920
 > Full page: 703 tokens | Filtered 'playwright': 40 tokens | Diff suppressed: 1 token
 
+### Chrome Extension Path (claude-in-chrome)
+
+Measured via `mcp__claude-in-chrome__*` tools against a live Chrome browser with warm cache. These represent a third automation path — using an existing Chrome instance rather than spawning a headless browser.
+
+#### Simple Navigation (example.com)
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate | proxy | 67 | 301 | - |
+| get_content | proxy | 2 | 440 | 102 |
+| navigate | direct | 1,711 | - | - |
+| snapshot (full) | direct | 3 | 787 | 181 |
+| navigate | chrome | 403 | - | - |
+| read_page | chrome | 3,200 | 213 | 53 |
+| get_page_text | chrome | 3,400 | 183 | 46 |
+
+> Chrome navigate is fast (warm cache) but read_page has ~3s extension round-trip overhead
+
+#### Google Search
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| navigate (homepage) | proxy | 1,449 | - | - |
+| get_content (1st read) | proxy | 3 | 78,262 | 17,676 |
+| get_content (2nd read, diff) | proxy | 2 | 14 | 1 |
+| snapshot results (full) | direct | 15 | 3,181 | 772 |
+| navigate (homepage) | chrome | 1,375 | - | - |
+| read_page (homepage) | chrome | 1,400 | 1,800 | 450 |
+| navigate (search results) | chrome | 3,921 | - | - |
+| read_page (search results) | chrome | 15,800 | 12,000 | 3,000 |
+
+> Chrome read_page on Google search results: 15.8s / 12KB due to complex DOM at depth 2
+
+#### YouTube Search
+
+| Operation | Path | Latency (ms) | Payload (bytes) | Est. Tokens |
+|-----------|------|-------------:|----------------:|------------:|
+| get_content (1st read) | proxy | 3 | 2,929 | 703 |
+| get_content (2nd read, diff) | proxy | 2 | 14 | 1 |
+| snapshot results (full) | direct | 15 | 1,956 | 460 |
+| navigate (homepage) | chrome | 3,708 | - | - |
+| read_page (homepage) | chrome | 2,200 | 11,000 | 2,750 |
+| navigate (search results) | chrome | 1,246 | - | - |
+| read_page (search results) | chrome | 1,300 | 10,000 | 2,500 |
+
+> YouTube SPA routing makes subsequent navigates fast (1.2s); chrome read_page payloads are large (10-11KB)
+
+#### 3-Way Path Comparison Summary
+
+| Path | Navigate Latency | Content Latency | Token Efficiency | Persistence |
+|------|-----------------|-----------------|------------------|-------------|
+| **Proxy** | Medium (67-1,449ms) | Fast (2-5ms via ref_id) | Best (diff: 1 token on repeat) | Full SQLite history |
+| **Direct** | Slow (1,508-6,434ms) | Fast (3-15ms) | Moderate (full payload each time) | None |
+| **Chrome** | Fast-Medium (403-3,921ms) | Slow (1,300-15,800ms) | Variable (53-3,000 tokens) | None |
+
+> **Proxy wins on token efficiency** — diff suppression and search filtering reduce tokens by 48-83%.
+> **Chrome wins on navigate speed** — warm cache avoids cold browser startup.
+> **Direct wins on content retrieval speed** — no extension round-trip overhead.
+
 ### Key Proxy Advantages
 
 | Feature | Description |
@@ -437,8 +496,11 @@ Measured with `uv run pytest tests/test_comparison.py -v -s -m integration` — 
 # Start the proxy server first
 uv run playwright-proxy-server
 
-# Run the comparison suite (requires internet access)
+# Run the proxy vs direct comparison suite (requires internet access)
 uv run pytest tests/test_comparison.py -v -s -m integration
+
+# Run the chrome path comparison report (uses pre-recorded measurements)
+uv run pytest tests/test_chrome_comparison.py -v -s -m chrome_comparison
 ```
 
 ## Development
@@ -506,6 +568,12 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | uv run playw
 - [x] `list_sessions(state)` tool
 - [x] `resume_session(session_id)` tool
 - [x] Comprehensive tests (16 tests total)
+
+### Phase 8 (Complete)
+- [x] Chrome extension path (claude-in-chrome) measurement infrastructure
+- [x] Pre-recorded measurements for 3 scenarios (example.com, Google Search, YouTube Search)
+- [x] 3-way performance comparison table (proxy vs direct vs chrome)
+- [x] `chrome_comparison` pytest marker for opt-in test selection
 
 ## Troubleshooting
 
