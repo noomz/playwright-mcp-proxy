@@ -47,4 +47,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "integration: tests requiring live server and network access",
+    "chrome_comparison: tests requiring pre-recorded chrome measurements (opt-in)",
 ]
