@@ -1,0 +1,126 @@
+{
+  "generated_at": "2026-03-12T00:00:00+07:00",
+  "measurement_method": "Navigation Timing API for navigate latency; JS timestamp deltas (minus ~6150ms baseline for 2 JS round-trips) for tool call durations; payload_bytes estimated from response character count",
+  "scenarios": [
+    {
+      "name": "Simple Navigation (example.com)",
+      "measurements": [
+        {
+          "label": "navigate",
+          "path": "chrome",
+          "elapsed_ms": 403,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "read_page",
+          "path": "chrome",
+          "elapsed_ms": 3200,
+          "payload_bytes": 213,
+          "estimated_tokens": 53
+        },
+        {
+          "label": "get_page_text",
+          "path": "chrome",
+          "elapsed_ms": 3400,
+          "payload_bytes": 183,
+          "estimated_tokens": 46
+        }
+      ],
+      "notes": [
+        "chrome: operates on existing Chrome instance (warm cache); Playwright paths use fresh headless Chromium (cold start).",
+        "read_page returns accessibility tree; get_page_text returns raw text extraction."
+      ]
+    },
+    {
+      "name": "Google Search",
+      "measurements": [
+        {
+          "label": "navigate (homepage)",
+          "path": "chrome",
+          "elapsed_ms": 1375,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "read_page (homepage)",
+          "path": "chrome",
+          "elapsed_ms": 1400,
+          "payload_bytes": 1800,
+          "estimated_tokens": 450
+        },
+        {
+          "label": "form_input (search query)",
+          "path": "chrome",
+          "elapsed_ms": 3800,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "navigate (search results)",
+          "path": "chrome",
+          "elapsed_ms": 3921,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "read_page (search results)",
+          "path": "chrome",
+          "elapsed_ms": 15800,
+          "payload_bytes": 12000,
+          "estimated_tokens": 3000
+        }
+      ],
+      "notes": [
+        "chrome: operates on existing Chrome instance (warm cache); Playwright paths use fresh headless Chromium (cold start).",
+        "Google search results have extremely complex DOM; read_page at depth 2 still produces ~12KB accessibility tree.",
+        "form_input set value but did not trigger search submission; navigate used directly for search results URL."
+      ]
+    },
+    {
+      "name": "YouTube Search",
+      "measurements": [
+        {
+          "label": "navigate (homepage)",
+          "path": "chrome",
+          "elapsed_ms": 3708,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "read_page (homepage)",
+          "path": "chrome",
+          "elapsed_ms": 2200,
+          "payload_bytes": 11000,
+          "estimated_tokens": 2750
+        },
+        {
+          "label": "form_input (search query)",
+          "path": "chrome",
+          "elapsed_ms": 1500,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "navigate (search results)",
+          "path": "chrome",
+          "elapsed_ms": 1246,
+          "payload_bytes": 0,
+          "estimated_tokens": 0
+        },
+        {
+          "label": "read_page (search results)",
+          "path": "chrome",
+          "elapsed_ms": 1300,
+          "payload_bytes": 10000,
+          "estimated_tokens": 2500
+        }
+      ],
+      "notes": [
+        "chrome: operates on existing Chrome instance (warm cache); Playwright paths use fresh headless Chromium (cold start).",
+        "YouTube homepage includes video player elements and recommendations; search results page loaded via direct URL navigation.",
+        "YouTube search results navigate was fast (1246ms) likely due to SPA-style client-side routing from warm YouTube session."
+      ]
+    }
+  ]
+}
