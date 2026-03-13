@@ -54,6 +54,8 @@ Always call `create_new_session` before using any browser tool. Browser tools fa
 | Tool | Parameters | Returns |
 |------|-----------|---------|
 | `create_new_session` | none | session_id string |
+| `list_sessions` | `state` (optional: active/closed/error/recoverable/stale) | session list |
+| `resume_session` | `session_id` (required) | resumed session info |
 | `browser_navigate` | `url` (required) | metadata + ref_id |
 | `browser_snapshot` | none | metadata + ref_id |
 | `browser_click` | `element` (required), `ref` (required) | metadata + ref_id |
@@ -108,7 +110,18 @@ playwright-proxy-ctl sessions clear --state error --yes  # skip prompt
 playwright-proxy-ctl db vacuum                        # compact DB (server must be stopped)
 ```
 
-Session states: `active`, `closed`, `error`. The `clear` command defaults to clearing `closed` sessions.
+Session states: `active`, `closed`, `error`, `recoverable`, `stale`, `failed`. The `clear` command defaults to clearing `closed` sessions.
+
+## Session Recovery
+
+After a server restart, previously active sessions are classified as `recoverable` or `stale` based on snapshot age. Use MCP tools to discover and resume them:
+
+```
+list_sessions(state="recoverable")    -> find resumable sessions
+resume_session(session_id="abc-123")  -> restore browser state and continue
+```
+
+`resume_session` navigates the browser back to the saved URL and sets the session as the active session for subsequent tool calls. If restoration fails, the session is marked as `failed`.
 
 ## Test Generation Workflow
 

@@ -30,6 +30,34 @@ TOOLS = [
         },
     ),
     Tool(
+        name="list_sessions",
+        description="List browser sessions, optionally filtered by state (active, closed, error, recoverable, stale)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "description": "Filter by session state",
+                    "enum": ["active", "closed", "error", "recoverable", "stale", "failed"],
+                },
+            },
+        },
+    ),
+    Tool(
+        name="resume_session",
+        description="Resume a previously saved session by restoring its browser state (URL, page content)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Session ID to resume",
+                },
+            },
+            "required": ["session_id"],
+        },
+    ),
+    Tool(
         name="get_content",
         description="Get page snapshot content from a previous request (Phase 2: with diff support, grep-like context)",
         inputSchema={
@@ -165,6 +193,36 @@ async def handle_tool_call(name: str, arguments: dict[str, Any]) -> list[TextCon
             data = response.json()
             current_session_id = data["session_id"]
             return [TextContent(type="text", text=f"Created session: {current_session_id}")]
+
+        # Handle listing sessions
+        if name == "list_sessions":
+            state = arguments.get("state")
+            params = {"state": state} if state else {}
+            response = await http_client.get(f"{server_url}/sessions", params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            if data["count"] == 0:
+                return [TextContent(type="text", text="No sessions found.")]
+
+            lines = [f"Found {data['count']} session(s):\n"]
+            for s in data["sessions"]:
+                age = f", snapshot {s['snapshot_age_seconds']}s ago" if s.get("snapshot_age_seconds") else ""
+                url = f", url={s['current_url']}" if s.get("current_url") else ""
+                lines.append(f"- {s['session_id']} [{s['state']}]{url}{age}")
+            return [TextContent(type="text", text="\n".join(lines))]
+
+        # Handle session resumption
+        if name == "resume_session":
+            session_id = arguments["session_id"]
+            response = await http_client.post(f"{server_url}/sessions/{session_id}/resume")
+            response.raise_for_status()
+            data = response.json()
+            current_session_id = session_id
+            return [TextContent(
+                type="text",
+                text=f"Resumed session {session_id} | url={data.get('restored_url', 'unknown')} | snapshot age={data.get('snapshot_age_seconds', '?')}s",
+            )]
 
         # Handle content retrieval
         if name == "get_content":

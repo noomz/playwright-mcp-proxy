@@ -614,7 +614,7 @@ def create_app() -> FastAPI:
             # Truncate error message for storage and MCP response
             truncated_error = truncate_error(error_str, max_length=500)
 
-            # Store error response and update session state — batch in single commit
+            # Store error response
             db_response = Response(
                 ref_id=ref_id,
                 status="error",
@@ -623,10 +623,17 @@ def create_app() -> FastAPI:
             )
             await database.create_response_no_commit(db_response)
 
-            # Update session state to error (no-commit, batched with response)
-            await database.update_session_state_no_commit(request.session_id, "error")
+            # Only mark session as "error" for infrastructure failures, not
+            # tool-level Playwright errors (stale ref, element not found, etc.)
+            # Playwright MCP tool errors come back as RuntimeError("Playwright MCP error: ...")
+            # which means the subprocess is healthy — the tool just failed.
+            is_tool_error = (
+                isinstance(e, RuntimeError) and str(e).startswith("Playwright MCP error:")
+            )
+            if not is_tool_error:
+                await database.update_session_state_no_commit(request.session_id, "error")
 
-            # COMMIT 2: batch error response + session state update
+            # COMMIT 2: batch error response + optional session state update
             await database.commit()
 
             return ProxyResponse(
