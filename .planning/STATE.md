@@ -55,3 +55,4 @@ Progress: [██████████] 100%
 ## Pending Todos (Backlog)
 
 1. **Implement list_sessions and resume_session MCP tools** (area: api) -- wire existing HTTP endpoints to MCP layer
+2. **Investigate unintentional session expiry on proxy requests** (area: api) -- sessions expire unexpectedly during normal usage, returning 400 on /proxy
