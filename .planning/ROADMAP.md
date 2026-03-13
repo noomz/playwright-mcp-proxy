@@ -12,10 +12,15 @@ This milestone cleans up accumulated tech debt in a working MCP proxy system. It
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Dependency Hygiene** - Correct all dependency declarations and version floors in pyproject.toml
+- [x] **Phase 1: Dependency Hygiene** - Correct all dependency declarations and version floors in pyproject.toml (completed 2026-03-10)
 - [x] **Phase 2: Bug Fixes** - Fix data-integrity bugs in param serialization, console error counting, and log filtering (completed 2026-03-10)
 - [x] **Phase 3: Transaction Batching** - Batch related DB writes into single transactions to reduce commit overhead (completed 2026-03-10)
 - [x] **Phase 4: Evaluate Consolidation & Security** - Combine 5 evaluate RPCs into 1 and close JS injection surface in session state (completed 2026-03-10)
+- [x] **Phase 5: CLI Management Tool** - playwright-proxy-ctl with health, sessions, db vacuum commands (completed 2026-03-11)
+- [x] **Phase 6: Claude Code Skill** - Complete SKILL.md covering all proxy tools and workflows (completed 2026-03-11)
+- [x] **Phase 7: Comparison Tests** - Proxy vs direct Playwright behavioral comparison (completed 2026-03-11)
+- [x] **Phase 8: Chrome Comparison** - 3-way performance comparison with Claude in Chrome (completed 2026-03-12)
+- [ ] **Phase 9: Fix SKILL.md accuracy and tracking gaps** - Remove non-existent tools from docs, close all requirement tracking gaps
 
 ## Phase Details
 
@@ -130,18 +135,33 @@ Plans:
 Plans:
 - [ ] 08-01-PLAN.md — Create chrome comparison test infrastructure and record chrome measurements via claude-in-chrome tools
 
+### Phase 9: Fix SKILL.md accuracy and close tracking gaps
+**Goal:** Remove non-existent MCP tools from SKILL.md, update all requirement checkboxes and traceability for phases 6 and 8, fix ROADMAP progress table
+**Depends on:** Phase 8
+**Requirements**: SKIL-01, SKIL-02, SKIL-03, SKIL-04, SKIL-05, SKIL-06, CHRM-01, CHRM-02, CHRM-03
+**Gap Closure:** Closes gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. SKILL.md tool reference table only lists tools that exist in client/mcp_server.py
+  2. REQUIREMENTS.md checkboxes for SKIL-01..06 and CHRM-01..03 are checked
+  3. REQUIREMENTS.md traceability table shows Complete for all 27 requirements
+**Plans:** 0 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Fix SKILL.md, update REQUIREMENTS.md checkboxes and traceability
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Dependency Hygiene | 1/1 | Complete | 2026-03-10 |
-| 2. Bug Fixes | 1/1 | Complete   | 2026-03-10 |
-| 3. Transaction Batching | 1/1 | Complete   | 2026-03-10 |
-| 4. Evaluate Consolidation & Security | 1/1 | Complete   | 2026-03-10 |
-| 5. CLI Management Tool | 1/1 | Complete   | 2026-03-11 |
-| 6. Claude Code Skill | 0/1 | Planned | - |
-| 7. Comparison Tests | 1/1 | Complete   | 2026-03-11 |
+| 2. Bug Fixes | 1/1 | Complete | 2026-03-10 |
+| 3. Transaction Batching | 1/1 | Complete | 2026-03-10 |
+| 4. Evaluate Consolidation & Security | 1/1 | Complete | 2026-03-10 |
+| 5. CLI Management Tool | 1/1 | Complete | 2026-03-11 |
+| 6. Claude Code Skill | 1/1 | Complete | 2026-03-11 |
+| 7. Comparison Tests | 1/1 | Complete | 2026-03-11 |
 | 8. Chrome Comparison | 1/1 | Complete | 2026-03-12 |
+| 9. Fix SKILL.md & Tracking | 0/1 | Planned | - |

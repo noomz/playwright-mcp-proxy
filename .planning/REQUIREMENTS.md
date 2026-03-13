@@ -99,20 +99,20 @@ Deferred to future milestone.
 | CLI-02 | Phase 5 | Complete |
 | CLI-03 | Phase 5 | Complete |
 | CLI-04 | Phase 5 | Complete |
-| SKIL-01 | Phase 6 | Planned |
-| SKIL-02 | Phase 6 | Planned |
-| SKIL-03 | Phase 6 | Planned |
-| SKIL-04 | Phase 6 | Planned |
-| SKIL-05 | Phase 6 | Planned |
-| SKIL-06 | Phase 6 | Planned |
+| SKIL-01 | Phase 6, 9 | Pending |
+| SKIL-02 | Phase 6, 9 | Pending |
+| SKIL-03 | Phase 6, 9 | Pending |
+| SKIL-04 | Phase 6, 9 | Pending |
+| SKIL-05 | Phase 6, 9 | Pending |
+| SKIL-06 | Phase 6, 9 | Pending |
 | CMP-01 | Phase 7 | Complete |
 | CMP-02 | Phase 7 | Complete |
 | CMP-03 | Phase 7 | Complete |
 | CMP-04 | Phase 7 | Complete |
 | CMP-05 | Phase 7 | Complete |
-| CHRM-01 | Phase 8 | Planned |
-| CHRM-02 | Phase 8 | Planned |
-| CHRM-03 | Phase 8 | Planned |
+| CHRM-01 | Phase 8, 9 | Pending |
+| CHRM-02 | Phase 8, 9 | Pending |
+| CHRM-03 | Phase 8, 9 | Pending |
 
 **Coverage:**
 - v1 requirements: 27 total
