@@ -112,6 +112,13 @@ class Database:
         )
         await self.conn.commit()
 
+    async def update_session_url_no_commit(self, session_id: str, url: str) -> None:
+        """Update session current_url without committing (for transaction batching)."""
+        await self.conn.execute(
+            "UPDATE sessions SET current_url = ? WHERE session_id = ?",
+            (url, session_id),
+        )
+
     async def update_session_state_no_commit(self, session_id: str, state: str) -> None:
         """Update session state without committing (for transaction batching)."""
         await self.conn.execute(

@@ -26,6 +26,7 @@ class PlaywrightManager:
         self._stderr_task: Optional[asyncio.Task] = None
         self._message_id = 0
         self._lock = asyncio.Lock()
+        self._intentional_close = False
 
     async def start(self) -> None:
         """Start the Playwright MCP subprocess."""
@@ -41,6 +42,9 @@ class PlaywrightManager:
         # Add headless flag if specified
         if settings.playwright_headless:
             command.append("--headless")
+
+        # Reset intentional close flag on new start
+        self._intentional_close = False
 
         # Spawn subprocess
         try:
@@ -221,6 +225,13 @@ class PlaywrightManager:
 
                 # Check if process is alive
                 if self.process and self.process.returncode is not None:
+                    if self._intentional_close:
+                        logger.info(
+                            "Playwright subprocess exited after intentional browser_close, "
+                            "suppressing auto-restart"
+                        )
+                        self.is_healthy = False
+                        break
                     logger.error(
                         f"Playwright subprocess died with code {self.process.returncode}"
                     )
