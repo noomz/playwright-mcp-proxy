@@ -85,7 +85,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+1. **Implement list_sessions and resume_session MCP tools** (area: api) — killing feature, wire existing HTTP endpoints to MCP layer
 
 ### Roadmap Evolution
 
