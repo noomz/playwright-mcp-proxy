@@ -62,8 +62,6 @@ Always call `create_new_session` before using any browser tool. Browser tools fa
 | `browser_close` | none | metadata + ref_id |
 | `get_content` | `ref_id` (required), `search_for` (optional), `reset_cursor` (optional bool), `before_lines` (optional int), `after_lines` (optional int) | page snapshot text |
 | `get_console_content` | `ref_id` (required), `level` (optional: debug/info/warn/error) | console log text |
-| `list_sessions` | `state` (optional: active/closed/error/recoverable/stale) | list of sessions |
-| `resume_session` | `session_id` (required) | resumed session confirmation |
 
 Parameter notes:
 - `element`: human-readable element description (e.g., "Submit button")
@@ -110,16 +108,7 @@ playwright-proxy-ctl sessions clear --state error --yes  # skip prompt
 playwright-proxy-ctl db vacuum                        # compact DB (server must be stopped)
 ```
 
-Session states: `active`, `closed`, `error`, `recoverable`, `stale`. The `clear` command defaults to clearing `closed` sessions.
-
-## Session Recovery
-
-Sessions survive server restarts. To resume a previous session:
-
-1. `list_sessions(state="recoverable")` — find sessions that can be resumed
-2. `resume_session(session_id)` — restore browser state (URL, cookies, storage)
-
-Sessions auto-close after 3 consecutive failed state captures (e.g., the browser tab was closed by the user). Once closed, they cannot be resumed.
+Session states: `active`, `closed`, `error`. The `clear` command defaults to clearing `closed` sessions.
 
 ## Test Generation Workflow
 
