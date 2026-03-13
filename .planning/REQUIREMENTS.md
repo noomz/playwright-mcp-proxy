@@ -37,12 +37,12 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Claude Code Skill
 
-- [ ] **SKIL-01**: Skill file exists at `~/.claude/skills/playwright-proxy/SKILL.md` with valid YAML frontmatter (name, description, allowed-tools)
-- [ ] **SKIL-02**: All 9 MCP tools documented with parameters and return values
-- [ ] **SKIL-03**: Response policy (metadata + ref_id, then get_content) explained as standard workflow
-- [ ] **SKIL-04**: Diff behavior documented (empty = unchanged, reset_cursor for full content)
-- [ ] **SKIL-05**: playwright-proxy-ctl commands (health, sessions list/clear, db vacuum) documented
-- [ ] **SKIL-06**: Skill follows progressive disclosure and passes skill-reviewer quality criteria
+- [x] **SKIL-01**: Skill file exists at `~/.claude/skills/playwright-proxy/SKILL.md` with valid YAML frontmatter (name, description, allowed-tools)
+- [x] **SKIL-02**: All 9 MCP tools documented with parameters and return values
+- [x] **SKIL-03**: Response policy (metadata + ref_id, then get_content) explained as standard workflow
+- [x] **SKIL-04**: Diff behavior documented (empty = unchanged, reset_cursor for full content)
+- [x] **SKIL-05**: playwright-proxy-ctl commands (health, sessions list/clear, db vacuum) documented
+- [x] **SKIL-06**: Skill follows progressive disclosure and passes skill-reviewer quality criteria
 
 ### Comparison Tests
 
@@ -54,9 +54,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Chrome Comparison
 
-- [ ] **CHRM-01**: Chrome measurement JSON file loads and validates with correct schema (generated_at, scenarios with measurements)
-- [ ] **CHRM-02**: Chrome comparison test prints formatted performance table showing chrome path metrics (latency, payload bytes, estimated tokens)
-- [ ] **CHRM-03**: Chrome measurements recorded for 3 scenarios (example.com, Google Search, YouTube Search) with navigate and read_page metrics
+- [x] **CHRM-01**: Chrome measurement JSON file loads and validates with correct schema (generated_at, scenarios with measurements)
+- [x] **CHRM-02**: Chrome comparison test prints formatted performance table showing chrome path metrics (latency, payload bytes, estimated tokens)
+- [x] **CHRM-03**: Chrome measurements recorded for 3 scenarios (example.com, Google Search, YouTube Search) with navigate and read_page metrics
 
 ## v2 Requirements
 
@@ -99,20 +99,20 @@ Deferred to future milestone.
 | CLI-02 | Phase 5 | Complete |
 | CLI-03 | Phase 5 | Complete |
 | CLI-04 | Phase 5 | Complete |
-| SKIL-01 | Phase 6, 9 | Pending |
-| SKIL-02 | Phase 6, 9 | Pending |
-| SKIL-03 | Phase 6, 9 | Pending |
-| SKIL-04 | Phase 6, 9 | Pending |
-| SKIL-05 | Phase 6, 9 | Pending |
-| SKIL-06 | Phase 6, 9 | Pending |
+| SKIL-01 | Phase 6, 9 | Complete |
+| SKIL-02 | Phase 6, 9 | Complete |
+| SKIL-03 | Phase 6, 9 | Complete |
+| SKIL-04 | Phase 6, 9 | Complete |
+| SKIL-05 | Phase 6, 9 | Complete |
+| SKIL-06 | Phase 6, 9 | Complete |
 | CMP-01 | Phase 7 | Complete |
 | CMP-02 | Phase 7 | Complete |
 | CMP-03 | Phase 7 | Complete |
 | CMP-04 | Phase 7 | Complete |
 | CMP-05 | Phase 7 | Complete |
-| CHRM-01 | Phase 8, 9 | Pending |
-| CHRM-02 | Phase 8, 9 | Pending |
-| CHRM-03 | Phase 8, 9 | Pending |
+| CHRM-01 | Phase 8, 9 | Complete |
+| CHRM-02 | Phase 8, 9 | Complete |
+| CHRM-03 | Phase 8, 9 | Complete |
 
 **Coverage:**
 - v1 requirements: 27 total
