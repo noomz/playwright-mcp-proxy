@@ -144,7 +144,7 @@ Plans:
   1. SKILL.md tool reference table only lists tools that exist in client/mcp_server.py
   2. REQUIREMENTS.md checkboxes for SKIL-01..06 and CHRM-01..03 are checked
   3. REQUIREMENTS.md traceability table shows Complete for all 27 requirements
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 - [ ] 09-01-PLAN.md — Fix SKILL.md, update REQUIREMENTS.md checkboxes and traceability
