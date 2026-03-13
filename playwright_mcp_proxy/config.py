@@ -90,6 +90,7 @@ class Settings(BaseSettings):
         env_prefix="PLAYWRIGHT_PROXY_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 
