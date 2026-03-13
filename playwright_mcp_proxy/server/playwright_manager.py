@@ -3,6 +3,8 @@
 import asyncio
 import json
 import logging
+import os
+import tempfile
 import time
 import traceback
 from asyncio.subprocess import Process
@@ -27,6 +29,7 @@ class PlaywrightManager:
         self._message_id = 0
         self._lock = asyncio.Lock()
         self._intentional_close = False
+        self._config_file: Optional[tempfile.NamedTemporaryFile] = None
 
     async def start(self) -> None:
         """Start the Playwright MCP subprocess."""
@@ -42,6 +45,17 @@ class PlaywrightManager:
         # Add headless flag if specified
         if settings.playwright_headless:
             command.append("--headless")
+
+        # Generate config file for Chrome launch args
+        if settings.playwright_chrome_args:
+            config = {"browser": {"launchOptions": {"args": settings.playwright_chrome_args}}}
+            self._config_file = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", prefix="playwright-mcp-", delete=False
+            )
+            json.dump(config, self._config_file)
+            self._config_file.flush()
+            command.extend(["--config", self._config_file.name])
+            logger.info(f"Using config file: {self._config_file.name} with args: {settings.playwright_chrome_args}")
 
         # Reset intentional close flag on new start
         self._intentional_close = False
@@ -115,6 +129,14 @@ class PlaywrightManager:
 
         self.is_healthy = False
         self.process = None
+
+        # Clean up temp config file
+        if self._config_file:
+            try:
+                os.unlink(self._config_file.name)
+            except OSError:
+                pass
+            self._config_file = None
 
     async def _read_line_chunked(self, stream: asyncio.StreamReader) -> bytes:
         """

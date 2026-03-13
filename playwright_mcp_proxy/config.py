@@ -6,6 +6,11 @@ from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Chrome flags applied by default to suppress noisy UI
+DEFAULT_CHROME_ARGS = [
+    "--disable-features=Translate",
+]
+
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -36,6 +41,10 @@ class Settings(BaseSettings):
     playwright_headless: bool = Field(
         default=False,
         description="Run browser in headless mode",
+    )
+    playwright_chrome_args: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_CHROME_ARGS),
+        description="Extra Chrome launch arguments (e.g. --disable-features=Translate)",
     )
 
     # Subprocess management
