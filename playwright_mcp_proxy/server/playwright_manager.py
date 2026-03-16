@@ -4,12 +4,17 @@ import asyncio
 import json
 import logging
 import os
+import signal
+import sys
 import tempfile
 import time
 import traceback
 from asyncio.subprocess import Process
 from collections import deque
+from pathlib import Path
 from typing import Any, Optional
+
+import psutil
 
 from ..config import settings
 
@@ -31,9 +36,65 @@ class PlaywrightManager:
         self._intentional_close = False
         self._config_file: Optional[tempfile.NamedTemporaryFile] = None
 
+    def _find_orphan_chrome_pids(self) -> list[int]:
+        """Find Chrome processes using the mcp-chrome user-data-dir."""
+        orphan_pids = []
+        mcp_chrome_marker = "ms-playwright/mcp-chrome"
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            try:
+                cmdline = proc.info.get("cmdline") or []
+                cmdline_str = " ".join(cmdline)
+                if mcp_chrome_marker in cmdline_str:
+                    orphan_pids.append(proc.info["pid"])
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return orphan_pids
+
+    @staticmethod
+    def _get_chrome_lock_path() -> Path:
+        """Get the Chrome SingletonLock path (cross-platform)."""
+        if sys.platform == "darwin":
+            cache_base = Path.home() / "Library" / "Caches"
+        else:
+            cache_base = Path.home() / ".cache"
+        return cache_base / "ms-playwright" / "mcp-chrome" / "SingletonLock"
+
+    def _kill_orphan_chrome(self) -> int:
+        """Kill orphaned Chrome processes using the mcp-chrome user-data-dir.
+
+        Returns:
+            Number of processes killed.
+        """
+        pids = self._find_orphan_chrome_pids()
+        killed = 0
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+                killed += 1
+                logger.info(f"Killed orphan Chrome process {pid}")
+            except OSError as e:
+                logger.warning(f"Failed to kill orphan Chrome {pid}: {e}")
+
+        # Remove SingletonLock if it exists
+        lock_path = self._get_chrome_lock_path()
+        if lock_path.exists():
+            try:
+                lock_path.unlink()
+                logger.info(f"Removed Chrome lock file: {lock_path}")
+            except OSError as e:
+                logger.warning(f"Failed to remove lock file: {e}")
+
+        return killed
+
     async def start(self) -> None:
         """Start the Playwright MCP subprocess."""
         logger.info("Starting Playwright MCP subprocess...")
+
+        # Kill any orphaned Chrome processes from previous runs (e.g., after OS sleep)
+        killed = self._kill_orphan_chrome()
+        if killed:
+            logger.info(f"Cleaned up {killed} orphan Chrome process(es), waiting for cleanup...")
+            await asyncio.sleep(1)  # Give Chrome time to release the profile lock
 
         # Build command
         command = [settings.playwright_command] + settings.playwright_args
