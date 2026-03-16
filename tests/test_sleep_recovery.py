@@ -1,14 +1,8 @@
 """Tests for sleep recovery: orphan Chrome cleanup, sleep detection, cursor purge."""
 
-import os
 import signal
-import sys
-import tempfile
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import psutil
 import pytest
 
 from playwright_mcp_proxy.server.playwright_manager import PlaywrightManager
@@ -88,3 +82,24 @@ async def test_start_calls_kill_orphan_chrome():
             await manager.start()
 
     assert kill_called
+
+
+def test_is_sleep_jump_true():
+    """Test that a large time jump is detected as sleep."""
+    assert PlaywrightManager._is_sleep_jump(
+        last_check=1000.0, now=1300.0, interval=30
+    )
+
+
+def test_is_sleep_jump_false_normal():
+    """Test that normal elapsed time is not detected as sleep."""
+    assert not PlaywrightManager._is_sleep_jump(
+        last_check=1000.0, now=1032.0, interval=30
+    )
+
+
+def test_is_sleep_jump_false_borderline():
+    """Test that borderline elapsed time (exactly 3x) is not detected."""
+    assert not PlaywrightManager._is_sleep_jump(
+        last_check=1000.0, now=1090.0, interval=30
+    )

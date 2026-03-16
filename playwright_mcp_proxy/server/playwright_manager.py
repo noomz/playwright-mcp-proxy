@@ -86,6 +86,24 @@ class PlaywrightManager:
 
         return killed
 
+    @staticmethod
+    def _is_sleep_jump(last_check: float, now: float, interval: int) -> bool:
+        """Detect if the elapsed time indicates an OS sleep/suspend.
+
+        Uses wall-clock time (time.time()), not monotonic, because
+        time.monotonic() does not advance during macOS sleep.
+
+        Args:
+            last_check: Wall-clock time of previous check (time.time())
+            now: Current wall-clock time (time.time())
+            interval: Expected interval in seconds
+
+        Returns:
+            True if elapsed time suggests OS sleep occurred.
+        """
+        elapsed = now - last_check
+        return elapsed > interval * 3
+
     async def start(self) -> None:
         """Start the Playwright MCP subprocess."""
         logger.info("Starting Playwright MCP subprocess...")
@@ -301,10 +319,27 @@ class PlaywrightManager:
     async def _health_check_loop(self) -> None:
         """Background task to monitor subprocess health."""
         consecutive_failures = 0
+        last_check_time = time.time()
 
         while True:
             try:
                 await asyncio.sleep(settings.health_check_interval)
+
+                # Detect wake-from-sleep using wall-clock time.
+                # time.time() advances during OS sleep; time.monotonic() does not on macOS.
+                now = time.time()
+                if self._is_sleep_jump(last_check_time, now, settings.health_check_interval):
+                    elapsed = now - last_check_time
+                    logger.warning(
+                        f"Detected wake-from-sleep: {elapsed:.0f}s elapsed "
+                        f"(expected ~{settings.health_check_interval}s). "
+                        f"Forcing subprocess restart to clean up stale state."
+                    )
+                    self.is_healthy = False
+                    await self._attempt_restart()
+                    break
+
+                last_check_time = now
 
                 # Check if process is alive
                 if self.process and self.process.returncode is not None:
@@ -320,7 +355,6 @@ class PlaywrightManager:
                     )
                     self.is_healthy = False
                     await self._attempt_restart()
-                    # start() creates a new health check loop — exit this one
                     break
 
                 # Try a simple ping (tools/list is a safe read-only operation)
@@ -339,7 +373,6 @@ class PlaywrightManager:
                         logger.error("Health check failed 3 times, marking unhealthy")
                         self.is_healthy = False
                         await self._attempt_restart()
-                        # start() creates a new health check loop — exit this one
                         break
 
             except asyncio.CancelledError:
