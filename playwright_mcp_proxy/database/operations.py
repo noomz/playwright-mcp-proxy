@@ -406,6 +406,13 @@ class Database:
         await self.conn.execute("DELETE FROM diff_cursors WHERE ref_id = ?", (ref_id,))
         await self.conn.commit()
 
+    async def delete_all_diff_cursors(self) -> int:
+        """Delete all diff cursors. Returns count of deleted rows."""
+        async with self.conn.execute("DELETE FROM diff_cursors") as cursor:
+            count = cursor.rowcount
+        await self.conn.commit()
+        return count
+
     # Session snapshot operations (Phase 7)
 
     async def save_session_snapshot(self, snapshot: SessionSnapshot) -> None:

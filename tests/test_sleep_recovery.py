@@ -1,10 +1,15 @@
 """Tests for sleep recovery: orphan Chrome cleanup, sleep detection, cursor purge."""
 
 import signal
+import tempfile
+from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from playwright_mcp_proxy.database import Database, init_database
+from playwright_mcp_proxy.models.database import DiffCursor
 from playwright_mcp_proxy.server.playwright_manager import PlaywrightManager
 
 
@@ -103,3 +108,55 @@ def test_is_sleep_jump_false_borderline():
     assert not PlaywrightManager._is_sleep_jump(
         last_check=1000.0, now=1090.0, interval=30
     )
+
+
+@pytest.fixture
+async def db():
+    """Create a temporary database for testing."""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    await init_database(db_path)
+    database = Database(db_path)
+    await database.connect()
+    yield database
+    await database.close()
+    Path(db_path).unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_delete_all_diff_cursors(db):
+    """Test that delete_all_diff_cursors removes all cursors."""
+    for i in range(3):
+        cursor = DiffCursor(
+            ref_id=f"ref-{i}",
+            cursor_position=100,
+            last_snapshot_hash=f"hash-{i}",
+            last_read=datetime.now(),
+        )
+        await db.upsert_diff_cursor(cursor)
+
+    for i in range(3):
+        assert await db.get_diff_cursor(f"ref-{i}") is not None
+
+    count = await db.delete_all_diff_cursors()
+    assert count == 3
+
+    for i in range(3):
+        assert await db.get_diff_cursor(f"ref-{i}") is None
+
+
+@pytest.mark.asyncio
+async def test_delete_all_diff_cursors_empty(db):
+    """Test that delete_all_diff_cursors returns 0 when no cursors exist."""
+    count = await db.delete_all_diff_cursors()
+    assert count == 0
+
+
+def test_on_restart_callback_registered():
+    """Test that PlaywrightManager accepts and stores an on_restart callback."""
+    async def my_callback():
+        pass
+
+    manager = PlaywrightManager(on_restart=my_callback)
+    assert manager._on_restart is my_callback

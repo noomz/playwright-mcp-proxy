@@ -24,8 +24,13 @@ logger = logging.getLogger(__name__)
 class PlaywrightManager:
     """Manages the Playwright MCP subprocess lifecycle."""
 
-    def __init__(self):
-        """Initialize the Playwright manager."""
+    def __init__(self, on_restart=None):
+        """Initialize the Playwright manager.
+
+        Args:
+            on_restart: Optional async callback invoked after subprocess restart
+                        (e.g., to purge stale diff cursors).
+        """
         self.process: Optional[Process] = None
         self.is_healthy = False
         self.restart_attempts: deque[float] = deque(maxlen=settings.max_restart_attempts)
@@ -35,6 +40,7 @@ class PlaywrightManager:
         self._lock = asyncio.Lock()
         self._intentional_close = False
         self._config_file: Optional[tempfile.NamedTemporaryFile] = None
+        self._on_restart = on_restart
 
     def _find_orphan_chrome_pids(self) -> list[int]:
         """Find Chrome processes using the mcp-chrome user-data-dir."""
@@ -425,6 +431,13 @@ class PlaywrightManager:
         try:
             await self.start()
             logger.info("Subprocess restarted successfully")
+
+            # Invoke restart callback (e.g., purge stale diff cursors)
+            if self._on_restart:
+                try:
+                    await self._on_restart()
+                except Exception as e:
+                    logger.error(f"on_restart callback failed: {e}")
         except Exception as e:
             logger.error(f"Failed to restart subprocess: {e}")
             logger.error(f"Traceback:\n{traceback.format_exc()}")

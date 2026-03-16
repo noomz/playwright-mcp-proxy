@@ -251,8 +251,14 @@ async def lifespan(app: FastAPI):
     await database.connect()
     logger.info(f"Database initialized at {settings.database_path}")
 
-    # Start Playwright manager
-    playwright_manager = PlaywrightManager()
+    # Start Playwright manager (with cursor purge callback)
+    async def _purge_stale_cursors():
+        """Purge all diff cursors after subprocess restart."""
+        purged = await database.delete_all_diff_cursors()
+        if purged:
+            logger.info(f"Purged {purged} stale diff cursor(s) after restart")
+
+    playwright_manager = PlaywrightManager(on_restart=_purge_stale_cursors)
     await playwright_manager.start()
     logger.info("Playwright subprocess started")
 
