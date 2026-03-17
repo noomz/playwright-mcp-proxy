@@ -1,5 +1,6 @@
 """Configuration for Playwright MCP Proxy."""
 
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -10,6 +11,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 DEFAULT_CHROME_ARGS = [
     "--disable-features=Translate",
 ]
+
+
+def _default_user_data_dir() -> str:
+    """Default Chrome profile directory, separate from direct Playwright MCP."""
+    if sys.platform == "darwin":
+        return str(Path.home() / "Library" / "Caches" / "playwright-mcp-proxy" / "chrome-profile")
+    return str(Path.home() / ".cache" / "playwright-mcp-proxy" / "chrome-profile")
 
 
 class Settings(BaseSettings):
@@ -45,6 +53,10 @@ class Settings(BaseSettings):
     playwright_chrome_args: list[str] = Field(
         default_factory=lambda: list(DEFAULT_CHROME_ARGS),
         description="Extra Chrome launch arguments (e.g. --disable-features=Translate)",
+    )
+    playwright_user_data_dir: Optional[str] = Field(
+        default_factory=_default_user_data_dir,
+        description="Chrome user-data-dir for persistent context (separate from direct Playwright MCP)",
     )
 
     # Subprocess management

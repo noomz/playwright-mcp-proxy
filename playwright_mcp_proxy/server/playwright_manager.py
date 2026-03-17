@@ -42,23 +42,30 @@ class PlaywrightManager:
         self._config_file: Optional[tempfile.NamedTemporaryFile] = None
         self._on_restart = on_restart
 
+    def _get_user_data_dir_marker(self) -> str:
+        """Get the marker string to identify Chrome processes owned by this proxy."""
+        if settings.playwright_user_data_dir:
+            return settings.playwright_user_data_dir
+        return "ms-playwright/mcp-chrome"
+
     def _find_orphan_chrome_pids(self) -> list[int]:
-        """Find Chrome processes using the mcp-chrome user-data-dir."""
+        """Find Chrome processes using the proxy's user-data-dir."""
         orphan_pids = []
-        mcp_chrome_marker = "ms-playwright/mcp-chrome"
+        marker = self._get_user_data_dir_marker()
         for proc in psutil.process_iter(["pid", "cmdline"]):
             try:
                 cmdline = proc.info.get("cmdline") or []
                 cmdline_str = " ".join(cmdline)
-                if mcp_chrome_marker in cmdline_str:
+                if marker in cmdline_str:
                     orphan_pids.append(proc.info["pid"])
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         return orphan_pids
 
-    @staticmethod
-    def _get_chrome_lock_path() -> Path:
-        """Get the Chrome SingletonLock path (cross-platform)."""
+    def _get_chrome_lock_path(self) -> Path:
+        """Get the Chrome SingletonLock path for the proxy's profile."""
+        if settings.playwright_user_data_dir:
+            return Path(settings.playwright_user_data_dir) / "SingletonLock"
         if sys.platform == "darwin":
             cache_base = Path.home() / "Library" / "Caches"
         else:
@@ -66,7 +73,7 @@ class PlaywrightManager:
         return cache_base / "ms-playwright" / "mcp-chrome" / "SingletonLock"
 
     def _kill_orphan_chrome(self) -> int:
-        """Kill orphaned Chrome processes using the mcp-chrome user-data-dir.
+        """Kill orphaned Chrome processes using the proxy's user-data-dir.
 
         Returns:
             Number of processes killed.
@@ -131,16 +138,21 @@ class PlaywrightManager:
         if settings.playwright_headless:
             command.append("--headless")
 
-        # Generate config file for Chrome launch args
+        # Generate config file for browser options
+        browser_config: dict = {}
         if settings.playwright_chrome_args:
-            config = {"browser": {"launchOptions": {"args": settings.playwright_chrome_args}}}
+            browser_config["launchOptions"] = {"args": settings.playwright_chrome_args}
+        if settings.playwright_user_data_dir:
+            browser_config["userDataDir"] = settings.playwright_user_data_dir
+        if browser_config:
+            config = {"browser": browser_config}
             self._config_file = tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", prefix="playwright-mcp-", delete=False
             )
             json.dump(config, self._config_file)
             self._config_file.flush()
             command.extend(["--config", self._config_file.name])
-            logger.info(f"Using config file: {self._config_file.name} with args: {settings.playwright_chrome_args}")
+            logger.info(f"Using config file: {self._config_file.name} with config: {config}")
 
         # Reset intentional close flag on new start
         self._intentional_close = False

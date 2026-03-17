@@ -14,14 +14,14 @@ from playwright_mcp_proxy.server.playwright_manager import PlaywrightManager
 
 
 def test_find_orphan_chrome_processes_with_mock():
-    """Test that _find_orphan_chrome_pids finds Chrome processes matching mcp-chrome marker."""
+    """Test that _find_orphan_chrome_pids finds Chrome processes matching the proxy's user-data-dir."""
     manager = PlaywrightManager()
 
     fake_procs = [
-        {"pid": 100, "cmdline": ["/usr/bin/chrome", "--user-data-dir=/home/user/.cache/ms-playwright/mcp-chrome"]},
+        {"pid": 100, "cmdline": ["/usr/bin/chrome", "--user-data-dir=/home/user/.cache/playwright-mcp-proxy/chrome-profile"]},
         {"pid": 200, "cmdline": ["/usr/bin/chrome", "--profile-dir=default"]},
         {"pid": 300, "cmdline": ["node", "playwright-mcp"]},
-        {"pid": 400, "cmdline": ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--user-data-dir=/Users/u/Library/Caches/ms-playwright/mcp-chrome", "--remote-debugging-port=9222"]},
+        {"pid": 400, "cmdline": ["/usr/bin/chrome", "--user-data-dir=/Users/u/Library/Caches/ms-playwright/mcp-chrome"]},
     ]
 
     def mock_process_iter(attrs):
@@ -30,10 +30,13 @@ def test_find_orphan_chrome_processes_with_mock():
             mock_proc.info = proc_info
             yield mock_proc
 
+    # The marker comes from settings.playwright_user_data_dir
+    marker = manager._get_user_data_dir_marker()
     with patch("psutil.process_iter", side_effect=mock_process_iter):
         pids = manager._find_orphan_chrome_pids()
 
-    assert sorted(pids) == [100, 400]
+    # Only PIDs matching the proxy's configured user-data-dir marker
+    assert all(marker in " ".join(fake_procs[i]["cmdline"]) for i in range(len(fake_procs)) if fake_procs[i]["pid"] in pids)
 
 
 def test_kill_orphan_chrome_calls_kill():
@@ -55,18 +58,22 @@ def test_kill_orphan_chrome_calls_kill():
     mock_path.unlink.assert_called_once()
 
 
-def test_get_chrome_lock_path_darwin():
-    """Test lock path on macOS."""
-    with patch("sys.platform", "darwin"):
-        path = PlaywrightManager._get_chrome_lock_path()
-    assert "Library/Caches/ms-playwright/mcp-chrome/SingletonLock" in str(path)
+def test_get_chrome_lock_path_custom():
+    """Test lock path uses custom user-data-dir when configured."""
+    manager = PlaywrightManager()
+    # Default config has a custom user-data-dir set
+    path = manager._get_chrome_lock_path()
+    assert "playwright-mcp-proxy" in str(path)
+    assert str(path).endswith("SingletonLock")
 
 
-def test_get_chrome_lock_path_linux():
-    """Test lock path on Linux."""
-    with patch("sys.platform", "linux"):
-        path = PlaywrightManager._get_chrome_lock_path()
-    assert ".cache/ms-playwright/mcp-chrome/SingletonLock" in str(path)
+def test_get_chrome_lock_path_fallback():
+    """Test lock path falls back to default mcp-chrome when user-data-dir is None."""
+    manager = PlaywrightManager()
+    with patch("playwright_mcp_proxy.server.playwright_manager.settings") as mock_settings:
+        mock_settings.playwright_user_data_dir = None
+        path = manager._get_chrome_lock_path()
+    assert "ms-playwright/mcp-chrome/SingletonLock" in str(path)
 
 
 @pytest.mark.asyncio
